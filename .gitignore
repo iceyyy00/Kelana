@@ -1,0 +1,19 @@
+# Backend
+backend/node_modules/
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Flutter
+kelana_app/.dart_tool/
+kelana_app/build/
+kelana_app/.flutter-plugins
+kelana_app/.flutter-plugins-dependencies
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
