@@ -1,13 +1,20 @@
 import express from 'express';
+import { randomBytes } from 'node:crypto';
+import axios from 'axios';
 import { parseUserIntent, optimizeItinerary } from '../services/geminiService.js';
 import { searchPlaces } from '../services/placesService.js';
 import { calculateRouteAndTravelTimes } from '../services/directionsService.js';
 import { config, isGeminiAvailable, isPlacesAvailable, isDirectionsAvailable } from '../config/env.js';
+import { requireAuth } from '../middleware/requireAuth.js';
+import {
+  deleteItinerary,
+  findItineraryByShareCode,
+  getItinerary,
+  listItineraries,
+  saveItinerary,
+} from '../services/itineraryStore.js';
 
 const router = express.Router();
-
-// In-memory store for saved itineraries during runtime
-const itinerariesStore = new Map();
 
 /**
  * Health check & environment status
@@ -32,7 +39,7 @@ router.get('/health', (req, res) => {
  * POST /api/parse-intent
  * Body: { query: string, preferences?: object }
  */
-router.post('/parse-intent', async (req, res) => {
+router.post('/parse-intent', requireAuth, async (req, res) => {
   try {
     const { query, preferences } = req.body;
 
@@ -63,7 +70,7 @@ router.post('/parse-intent', async (req, res) => {
  * POST /api/search-places
  * Body: { location: string, categories?: string[], budget?: number }
  */
-router.post('/search-places', async (req, res) => {
+router.post('/search-places', requireAuth, async (req, res) => {
   try {
     const intent = req.body || {};
     if (!intent.location) {
@@ -92,7 +99,7 @@ router.post('/search-places', async (req, res) => {
  * POST /api/build-itinerary
  * Body: { places: Place[], intent?: ParsedIntent }
  */
-router.post('/build-itinerary', async (req, res) => {
+router.post('/build-itinerary', requireAuth, async (req, res) => {
   try {
     const { places, intent } = req.body;
 
@@ -175,56 +182,116 @@ router.post('/build-itinerary', async (req, res) => {
   }
 });
 
+router.get('/place-photos', async (req, res) => {
+  const reference = req.query.reference;
+  if (
+    typeof reference !== 'string' ||
+    reference.trim().length === 0 ||
+    reference.length > 2048 ||
+    /[\u0000-\u001f\u007f]/.test(reference)
+  ) {
+    return res.status(400).json({ success: false, error: 'Referensi foto tidak valid.' });
+  }
+  if (!config.googlePlacesApiKey) {
+    return res.status(503).json({ success: false, error: 'Google Places API belum dikonfigurasi.' });
+  }
+
+  try {
+    const response = await axios.get(
+      'https://maps.googleapis.com/maps/api/place/photo',
+      {
+        params: {
+          maxwidth: 800,
+          photoreference: reference,
+          key: config.googlePlacesApiKey,
+        },
+        responseType: 'arraybuffer',
+        maxContentLength: 5 * 1024 * 1024,
+        maxRedirects: 3,
+        timeout: 8000,
+      },
+    );
+    res.set('Content-Type', response.headers['content-type'] || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.status(200).send(Buffer.from(response.data));
+  } catch (error) {
+    console.error('[API /place-photos] Google Places photo request failed:', error.message);
+    return res.status(502).json({ success: false, error: 'Gagal memuat foto tempat.' });
+  }
+});
+
 /**
  * 4. CRUD Itineraries (Proxy / Local Store)
  */
-router.get('/itineraries', (req, res) => {
-  const items = Array.from(itinerariesStore.values());
-  res.json({
-    success: true,
-    data: items
-  });
-});
-
-router.post('/itineraries', (req, res) => {
-  const itinerary = req.body;
-  if (!itinerary || !itinerary.id) {
-    const id = 'itin_' + Date.now();
-    itinerary.id = id;
+router.get('/itineraries', requireAuth, async (req, res) => {
+  try {
+    const items = await listItineraries(req.user.uid);
+    return res.json({ success: true, data: items });
+  } catch (error) {
+    console.error('[API /itineraries] Error loading itineraries:', error);
+    return res.status(500).json({ success: false, error: 'Gagal memuat itinerary.' });
   }
-  itinerary.updatedAt = new Date().toISOString();
-  if (!itinerary.shareCode) {
-    itinerary.shareCode = 'KLN-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+});
+
+router.post('/itineraries', requireAuth, async (req, res) => {
+  try {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      return res.status(400).json({ success: false, error: 'Data itinerary tidak valid.' });
+    }
+
+    const itinerary = { ...req.body };
+    if (itinerary.id != null && !/^[A-Za-z0-9_-]{1,128}$/.test(String(itinerary.id))) {
+      return res.status(400).json({ success: false, error: 'ID itinerary tidak valid.' });
+    }
+    itinerary.id ||= 'itin_' + Date.now();
+    itinerary.userId = req.user.uid;
+    itinerary.updatedAt = new Date().toISOString();
+    const existingItinerary = await getItinerary(req.user.uid, itinerary.id);
+    itinerary.shareCode = existingItinerary?.shareCode ??
+      'KLN-' + randomBytes(6).toString('hex').toUpperCase();
+
+    await saveItinerary(req.user.uid, itinerary);
+    return res.json({ success: true, data: itinerary });
+  } catch (error) {
+    console.error('[API /itineraries] Error saving itinerary:', error);
+    return res.status(500).json({ success: false, error: 'Gagal menyimpan itinerary.' });
   }
-  itinerariesStore.set(itinerary.id, itinerary);
-
-  res.json({
-    success: true,
-    data: itinerary
-  });
 });
 
-router.get('/itineraries/:id', (req, res) => {
-  const item = itinerariesStore.get(req.params.id);
-  if (!item) {
-    return res.status(404).json({ error: 'Itinerary tidak ditemukan.' });
+router.get('/itineraries/:id', requireAuth, async (req, res) => {
+  try {
+    const item = (await listItineraries(req.user.uid)).find(({ id }) => id === req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, error: 'Itinerary tidak ditemukan.' });
+    }
+    return res.json({ success: true, data: item });
+  } catch (error) {
+    console.error('[API /itineraries/:id] Error loading itinerary:', error);
+    return res.status(500).json({ success: false, error: 'Gagal memuat itinerary.' });
   }
-  res.json({ success: true, data: item });
 });
 
-router.delete('/itineraries/:id', (req, res) => {
-  const existed = itinerariesStore.delete(req.params.id);
-  res.json({ success: existed });
+router.delete('/itineraries/:id', requireAuth, async (req, res) => {
+  try {
+    const deleted = await deleteItinerary(req.user.uid, req.params.id);
+    return res.json({ success: deleted });
+  } catch (error) {
+    console.error('[API /itineraries/:id] Error deleting itinerary:', error);
+    return res.status(500).json({ success: false, error: 'Gagal menghapus itinerary.' });
+  }
 });
 
-router.get('/share/:shareCode', (req, res) => {
-  const code = req.params.shareCode.toUpperCase();
-  for (const item of itinerariesStore.values()) {
-    if (item.shareCode === code) {
+router.get('/share/:shareCode', async (req, res) => {
+  try {
+    const item = await findItineraryByShareCode(req.params.shareCode.toUpperCase());
+    if (item) {
       return res.json({ success: true, data: item });
     }
+    return res.status(404).json({ error: 'Kode share tidak valid atau sudah kadaluarsa.' });
+  } catch (error) {
+    console.error('[API /share/:shareCode] Error finding shared itinerary:', error);
+    return res.status(500).json({ success: false, error: 'Gagal memuat itinerary bersama.' });
   }
-  return res.status(404).json({ error: 'Kode share tidak valid atau sudah kadaluarsa.' });
 });
 
 export default router;

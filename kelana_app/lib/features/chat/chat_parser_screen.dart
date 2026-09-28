@@ -314,7 +314,7 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                                 return FilterChip(
                                   label: Text(cat),
                                   selected: isSelected,
-                                  selectedColor: AppColors.primary.withOpacity(0.18),
+                                  selectedColor: AppColors.primary.withValues(alpha: 0.18),
                                   checkmarkColor: AppColors.primary,
                                   labelStyle: TextStyle(
                                     fontSize: 12,

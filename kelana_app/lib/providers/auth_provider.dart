@@ -1,5 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
 
 class AuthState {
@@ -19,70 +19,76 @@ class AuthState {
     bool? isAuthenticated,
     bool? isLoading,
     UserProfile? user,
+    bool clearUser = false,
     String? errorMessage,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isLoading: isLoading ?? this.isLoading,
-      user: user ?? this.user,
+      user: clearUser ? null : user ?? this.user,
       errorMessage: errorMessage,
     );
   }
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   AuthNotifier() : super(AuthState()) {
-    checkSavedSession();
-  }
-
-  Future<void> checkSavedSession() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
-      final userName = prefs.getString('user_name') ?? 'Petualang Kelana';
-      final userEmail = prefs.getString('user_email') ?? 'user@kelana.app';
-
-      if (isLoggedIn) {
-        state = state.copyWith(
-          isAuthenticated: true,
-          user: UserProfile(
-            userId: 'user_${DateTime.now().millisecondsSinceEpoch}',
-            name: userName,
-            email: userEmail,
-            createdAt: DateTime.now().toIso8601String(),
-          ),
-        );
+    _auth.authStateChanges().listen((user) {
+      if (user == null) {
+        state = state.copyWith(isAuthenticated: false, clearUser: true);
+        return;
       }
-    } catch (_) {}
+
+      final profile = UserProfile(
+        userId: user.uid,
+        name: user.isAnonymous
+            ? 'Tamu Kelana'
+            : user.displayName ?? user.email?.split('@').first ?? 'Kelana User',
+        email: user.email ??
+            (user.isAnonymous ? 'guest@kelana.app' : 'user@kelana.app'),
+        photoUrl: user.photoURL,
+        createdAt: user.metadata.creationTime?.toIso8601String() ??
+            DateTime.now().toIso8601String(),
+      );
+
+      state = state.copyWith(
+        isAuthenticated: true,
+        user: profile,
+      );
+    });
   }
 
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
-    await Future.delayed(const Duration(milliseconds: 600));
 
-    if (email.isNotEmpty && password.length >= 6) {
-      final user = UserProfile(
-        userId: 'usr_${email.hashCode}',
-        name: email.split('@').first,
-        email: email,
-        createdAt: DateTime.now().toIso8601String(),
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
       );
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('is_logged_in', true);
-      await prefs.setString('user_name', user.name);
-      await prefs.setString('user_email', user.email);
+      if (credential.user == null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Login gagal. Coba lagi.',
+        );
+        return false;
+      }
 
-      state = state.copyWith(
-        isAuthenticated: true,
-        isLoading: false,
-        user: user,
-      );
+      state = state.copyWith(isLoading: false, isAuthenticated: true);
       return true;
-    } else {
+    } on FirebaseAuthException catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Email atau password tidak valid (min. 6 karakter).',
+        errorMessage: e.message ?? 'Email atau password tidak valid.',
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Terjadi kesalahan saat login.',
       );
       return false;
     }
@@ -90,49 +96,76 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> register(String name, String email, String password) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
-    await Future.delayed(const Duration(milliseconds: 600));
 
-    if (name.isNotEmpty && email.isNotEmpty && password.length >= 6) {
-      final user = UserProfile(
-        userId: 'usr_${email.hashCode}',
-        name: name,
-        email: email,
-        createdAt: DateTime.now().toIso8601String(),
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
       );
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('is_logged_in', true);
-      await prefs.setString('user_name', user.name);
-      await prefs.setString('user_email', user.email);
+      if (credential.user != null) {
+        await credential.user!.updateDisplayName(name.trim());
+      }
 
-      state = state.copyWith(
-        isAuthenticated: true,
-        isLoading: false,
-        user: user,
-      );
+      state = state.copyWith(isLoading: false, isAuthenticated: true);
       return true;
-    } else {
+    } on FirebaseAuthException catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Lengkapi semua data dengan benar.',
+        errorMessage: e.message ?? 'Registrasi gagal.',
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Terjadi kesalahan saat mendaftar.',
       );
       return false;
     }
   }
 
-  Future<void> loginAsGuest() async {
-    final user = UserProfile(
-      userId: 'guest_user',
-      name: 'Tamu Kelana',
-      email: 'guest@kelana.app',
-      createdAt: DateTime.now().toIso8601String(),
-    );
-    state = state.copyWith(isAuthenticated: true, user: user);
+  Future<bool> loginAsGuest() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final credential = await _auth.signInAnonymously();
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Gagal masuk sebagai tamu. Coba lagi.',
+        );
+        return false;
+      }
+
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        user: UserProfile(
+          userId: firebaseUser.uid,
+          name: 'Tamu Kelana',
+          email: 'guest@kelana.app',
+          createdAt: firebaseUser.metadata.creationTime?.toIso8601String() ??
+              DateTime.now().toIso8601String(),
+        ),
+      );
+      return true;
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message ?? 'Gagal masuk sebagai tamu.',
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Terjadi kesalahan saat masuk sebagai tamu.',
+      );
+      return false;
+    }
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('is_logged_in');
+    await _auth.signOut();
     state = AuthState(isAuthenticated: false);
   }
 }

@@ -39,7 +39,7 @@ class ItineraryStopCard extends StatelessWidget {
                 Container(
                   width: 2,
                   height: 24,
-                  color: AppColors.primary.withOpacity(0.3),
+                  color: AppColors.primary.withValues(alpha: 0.3),
                 ),
                 const SizedBox(width: 14),
                 Container(

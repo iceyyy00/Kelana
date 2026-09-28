@@ -2,12 +2,15 @@
   "name": "kelana-backend",
   "version": "1.0.0",
   "description": "Backend Proxy for Kelana AI Itinerary Planner App (Gemini + Places + Directions)",
-  "main": "src/server.js",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "start": "node src/start.js",
+    "dev": "node --watch src/start.js",
     "test": "node test/test-api.js"
+  },
+  "engines": {
+    "node": "22"
   },
   "keywords": [
     "kelana",
@@ -23,6 +26,8 @@
     "axios": "^1.7.9",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0"
   }
 }

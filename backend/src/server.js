@@ -84,12 +84,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = config.port;
-app.listen(PORT, () => {
-  console.log('====================================================');
-  console.log(`🧭 Kelana Backend Proxy is running on port ${PORT}`);
-  console.log(`📍 URL: http://localhost:${PORT}`);
-  console.log(`🔑 Gemini API: ${isGeminiAvailable() ? 'Configured ✅' : 'Missing (Smart Mock Mode enabled) ⚠️'}`);
-  console.log(`🗺️ Places API: ${isPlacesAvailable() ? 'Configured ✅' : 'Missing (Indonesian Datasets enabled) ⚠️'}`);
-  console.log('====================================================');
-});
+export default app;

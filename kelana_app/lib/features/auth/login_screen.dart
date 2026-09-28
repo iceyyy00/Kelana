@@ -34,8 +34,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _handleGuest() async {
-    await ref.read(authProvider.notifier).loginAsGuest();
-    if (mounted) {
+    final success = await ref.read(authProvider.notifier).loginAsGuest();
+    if (success && mounted) {
       context.go('/home');
     }
   }
@@ -59,7 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -191,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               // Guest Button
               OutlinedButton(
-                onPressed: _handleGuest,
+                onPressed: auth.isLoading ? null : _handleGuest,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(color: AppColors.border),

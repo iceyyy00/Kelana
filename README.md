@@ -1,6 +1,6 @@
 # 🧭 Kelana — AI Itinerary Planner App
 
-Aplikasi perencana perjalanan cerdas berbasis **Flutter** dan **Node.js Express Backend Proxy** yang mengintegrasikan **Gemini API** (Natural Language Understanding & Reasoning) dan **Google Places + Directions API**.
+Aplikasi perencana perjalanan cerdas berbasis **Flutter**, **Firebase**, dan **Node.js Express Backend Proxy** yang mengintegrasikan **Gemini API** (Natural Language Understanding & Reasoning) dan **Google Places + Directions API**. Backend dapat dijalankan lokal atau di-deploy sebagai **Firebase Cloud Function**.
 
 ---
 
@@ -31,14 +31,15 @@ Aplikasi perencana perjalanan cerdas berbasis **Flutter** dan **Node.js Express 
 
 ```
 Kelana/
-├── backend/                       # Backend Proxy (Node.js Express)
+├── backend/                       # Backend Proxy / Firebase Cloud Function
 │   ├── src/
 │   │   ├── config/                # Konfigurasi & Environment
 │   │   ├── mock/                  # Dataset destinasi Indonesia (Semarang, Jogja, Bandung, Bali)
 │   │   ├── routes/                # Endpoint API: /parse-intent, /search-places, /build-itinerary
 │   │   ├── schemas/               # Gemini Structured Output JSON Schema
 │   │   ├── services/              # Gemini Service, Places Service, Directions Service
-│   │   └── server.js              # Express Entry Point
+│   │   ├── server.js              # Express App
+│   │   └── index.js               # Firebase Cloud Functions Entry Point
 │   ├── test/
 │   │   └── test-api.js            # Automated integration tests
 │   ├── .env                       # File konfigurasi API Key
@@ -69,40 +70,83 @@ Kelana/
 
 ## 🚀 Cara Menjalankan
 
-### 1. Menjalankan Backend Proxy
+### 1. Menjalankan backend lokal (opsional)
 
-Buka terminal di folder `backend`:
 ```bash
-cd backend
-npm install
-npm start
+npm --prefix backend install
+npm --prefix backend start
 ```
-Server akan berjalan di: `http://localhost:5000`
+Server berjalan di `http://localhost:5000`.
 
-> **Catatan API Key:**
-> Edit file `backend/.env` untuk memasukkan `GEMINI_API_KEY` dan `GOOGLE_PLACES_API_KEY`. Jika dibiarkan kosong, backend otomatis beralih ke **Smart Mock Fallback Mode** sehingga Anda dapat langsung mencoba flow secara utuh!
+### 2. Menyiapkan Firebase, Gemini, Places, dan Firestore
 
-Untuk menguji seluruh endpoint backend secara otomatis:
+1. Gunakan project Firebase `kelana-f39b1`, aktifkan **Authentication** (Email/Password dan Anonymous), dan buat database **Cloud Firestore** di region `asia-southeast1` agar sejalan dengan region Functions. Deploy Cloud Functions memerlukan paket Blaze.
+2. Pada Google Cloud project yang sama, aktifkan **Places API** dan **Directions API** serta billing. Buat API key server untuk Places/Directions dan batasi key tersebut ke API yang digunakan; buat Gemini API key melalui Google AI Studio. Peta Flutter juga membutuhkan Maps SDK key terpisah yang dibatasi ke Android app dan website, lalu dipasang hanya pada konfigurasi platform.
+3. Dari root repository, instal Firebase CLI, login, lalu pilih project:
 ```bash
-node test/test-api.js
+npm install --global firebase-tools
+firebase login
+firebase use --add
 ```
 
-### 2. Menjalankan Aplikasi Flutter
+4. Simpan API key sebagai Firebase secrets. Jangan masukkan key ke Flutter atau commit ke repository:
+```bash
+firebase functions:secrets:set GEMINI_API_KEY
+firebase functions:secrets:set GOOGLE_PLACES_API_KEY
+firebase functions:secrets:set GOOGLE_DIRECTIONS_API_KEY
+```
+Places dan Directions dapat memakai key Google yang sama dengan mengatur kedua secret ke nilai yang sama.
 
-Buka terminal di folder `kelana_app`:
+5. Deploy Firestore rules dan fungsi backend:
+```bash
+npm --prefix backend install
+firebase deploy --only firestore:rules,functions:backend
+```
+Cloud Function API base URL: `https://asia-southeast1-kelana-f39b1.cloudfunctions.net/backend`. Fungsi memverifikasi Firebase ID token dan menyimpan itinerary di `users/{uid}/itineraries`.
+
+### 3. Menyiapkan dan menjalankan Flutter
+
+Checkout ini belum menyertakan direktori platform Android/web. Dari `kelana_app`, buat target tersebut, lalu daftarkan app Firebase:
+
 ```bash
 cd kelana_app
+flutter create --platforms=android,web .
+dart pub global activate flutterfire_cli
+flutterfire configure --project=kelana-f39b1
 flutter pub get
-flutter run
 ```
 
-Jika dijalankan di browser (Chrome) atau emulator:
-- **Web / Chrome**: `flutter run -d chrome`
-- **Android Emulator**: Base URL backend otomatis mengarah ke `http://10.0.2.2:5000/api`.
-- **Perangkat Fisik**: Di aplikasi buka menu **Profil > Konfigurasi Backend Proxy**, masukkan IP Wi-Fi komputer Anda (misal `http://192.168.1.10:5000/api`) lalu tekan tombol **Tes Koneksi Server**.
+`flutterfire configure` menghasilkan `lib/firebase_options.dart`. Untuk web (dan konfigurasi lintas platform yang eksplisit), import file tersebut di `lib/main.dart` lalu inisialisasi Firebase seperti berikut:
+```dart
+await Firebase.initializeApp(
+  options: DefaultFirebaseOptions.currentPlatform,
+);
+```
+Tambahkan Maps SDK key yang dibatasi ke app Android pada `<application>` di `android/app/src/main/AndroidManifest.xml`:
+```xml
+<meta-data
+    android:name="com.google.android.geo.API_KEY"
+    android:value="YOUR_ANDROID_MAPS_SDK_KEY" />
+```
+Untuk web, tambahkan script Maps JavaScript API dengan website-restricted key ke `<head>` di `web/index.html`:
+```html
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_WEB_MAPS_SDK_KEY"></script>
+```
+Jangan memakai API key server pada salah satu file platform.
+
+Jalankan aplikasi terhadap Cloud Function (URL tersebut sudah menjadi default; `--dart-define` tetap dapat dipakai untuk override):
+```bash
+flutter run --dart-define=KELANA_API_BASE_URL=https://asia-southeast1-kelana-f39b1.cloudfunctions.net/backend
+```
+Untuk kerja lokal, jalankan `npm --prefix backend start` lalu override URL untuk platform target, misalnya `--dart-define=KELANA_API_BASE_URL=http://10.0.2.2:5000` pada Android emulator atau `http://localhost:5000` pada web. Backend lokal beralih ke dataset fallback bila API key tidak tersedia dan memakai identitas `local-development`; itinerary lokal disimpan in-memory. Perangkat fisik dapat menggunakan URL backend lokal melalui **Profil > Konfigurasi Backend Proxy**, misalnya `http://192.168.1.10:5000`.
+
+Tes endpoint backend lokal dengan server berjalan:
+```bash
+npm --prefix backend test
+```
 
 ---
 
 ## 🔒 Keamanan API Key
 
-Sesuai spesifikasi, seluruh API Key pihak ketiga (**Gemini**, **Google Places**, **Google Directions**) hanya tersimpan di Backend Proxy (`backend/.env`) dan tidak pernah diexpose ke client Flutter.
+Seluruh API key pihak ketiga (**Gemini**, **Google Places**, **Google Directions**) hanya diakses backend. Saat deploy, simpan sebagai Firebase Functions secrets; untuk backend lokal gunakan `backend/.env` (tidak dilacak git). Jangan pernah menyimpan key tersebut di aplikasi Flutter.

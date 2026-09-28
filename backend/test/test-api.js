@@ -1,4 +1,5 @@
 import http from 'http';
+import { requireAuth } from '../src/middleware/requireAuth.js';
 
 const BASE_URL = 'http://localhost:5000/api';
 
@@ -49,6 +50,37 @@ async function runTests() {
     console.log('   API Status:', JSON.stringify(health.body?.apiStatus));
     if (health.status !== 200) throw new Error('Health check failed');
 
+    console.log('\n1️⃣ Testing protected endpoints reject unauthenticated requests ...');
+    const originalService = process.env.K_SERVICE;
+    process.env.K_SERVICE = 'test';
+    let rejectedStatus;
+    try {
+      await requireAuth(
+        { headers: {} },
+        {
+          status(status) {
+            rejectedStatus = status;
+            return this;
+          },
+          json() {
+            return this;
+          },
+        },
+        () => {
+          throw new Error('Protected middleware unexpectedly called next()');
+        },
+      );
+    } finally {
+      if (originalService === undefined) {
+        delete process.env.K_SERVICE;
+      } else {
+        process.env.K_SERVICE = originalService;
+      }
+    }
+    if (rejectedStatus !== 401) {
+      throw new Error('Protected endpoint accepted an unauthenticated request');
+    }
+
     // 2. Parse Intent
     console.log('\n2️⃣ Testing POST /api/parse-intent ...');
     const prompt = "hari ini mau ke Semarang, budget 100rb, suka tempat kuliner dan sejarah";
@@ -88,6 +120,38 @@ async function runTests() {
     }
     if (buildRes.status !== 200 || !buildRes.body?.data?.places) {
       throw new Error('Build itinerary failed');
+    }
+
+    console.log('\n5️⃣ Testing itinerary persistence and sharing ...');
+    const savedRes = await request('POST', '/itineraries', {
+      ...buildRes.body.data,
+      shareCode: 'KLN-000001',
+    });
+    if (
+      savedRes.status !== 200 ||
+      !savedRes.body?.data?.shareCode ||
+      savedRes.body.data.shareCode === 'KLN-000001'
+    ) {
+      throw new Error('Saving an itinerary failed');
+    }
+    const updatedRes = await request('POST', '/itineraries', {
+      ...savedRes.body.data,
+      shareCode: 'KLN-000002',
+    });
+    if (updatedRes.body?.data?.shareCode !== savedRes.body.data.shareCode) {
+      throw new Error('Updating an itinerary changed its share code');
+    }
+    const savedList = await request('GET', '/itineraries');
+    if (!savedList.body?.data?.some((item) => item.id === savedRes.body.data.id)) {
+      throw new Error('Saved itinerary was not returned in the list');
+    }
+    const sharedRes = await request('GET', `/share/${savedRes.body.data.shareCode}`);
+    if (sharedRes.status !== 200 || sharedRes.body?.data?.id !== savedRes.body.data.id) {
+      throw new Error('Shared itinerary could not be retrieved');
+    }
+    const deletedRes = await request('DELETE', `/itineraries/${savedRes.body.data.id}`);
+    if (deletedRes.status !== 200 || deletedRes.body?.success !== true) {
+      throw new Error('Deleting an itinerary failed');
     }
 
     console.log('\n🎉 ALL TESTS PASSED SUCCESSFULLY! ✅');
