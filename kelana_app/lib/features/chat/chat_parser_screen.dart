@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/trip_creation_provider.dart';
 import '../../models/parsed_intent.dart';
@@ -100,11 +99,6 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
       _syncIntentToControllers(intent);
     }
 
-    final currencyFormatter = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
 
     return Scaffold(
       appBar: AppBar(

@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_constants.dart';
 import '../../models/parsed_intent.dart';
 import '../../models/place.dart';
