@@ -123,7 +123,7 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
                               child: ChoiceChip(
                                 label: Text(cat),
                                 selected: isSel,
-                                selectedColor: AppColors.primary.withOpacity(0.15),
+                                selectedColor: AppColors.primary.withValues(alpha: 0.15),
                                 labelStyle: TextStyle(
                                   fontSize: 12,
                                   color: isSel ? AppColors.primary : AppColors.textPrimary,
@@ -183,7 +183,7 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
+                        color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 10,
                         offset: const Offset(0, -4),
                       ),

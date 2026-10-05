@@ -2,11 +2,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config, isGeminiAvailable } from '../config/env.js';
 import { geminiIntentResponseSchema, geminiItineraryResponseSchema } from '../schemas/intentSchema.js';
 
-let genAI = null;
-if (isGeminiAvailable()) {
-  genAI = new GoogleGenerativeAI(config.geminiApiKey);
-}
-
 /**
  * Heuristic fallback parser for offline/demo mode
  */
@@ -110,8 +105,8 @@ export async function parseUserIntent(rawQuery, userPreferences = {}) {
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+    const model = new GoogleGenerativeAI(config.geminiApiKey).getGenerativeModel({
+      model: "gemini-2.5-flash",
       generationConfig: {
         responseMimeType: "application/json",
         temperature: 0.2,
@@ -220,8 +215,8 @@ export async function optimizeItinerary(places, intent = {}) {
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+    const model = new GoogleGenerativeAI(config.geminiApiKey).getGenerativeModel({
+      model: "gemini-2.5-flash",
       generationConfig: {
         responseMimeType: "application/json",
         temperature: 0.3,

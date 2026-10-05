@@ -35,10 +35,8 @@ export async function searchPlaces(intent = {}) {
 
     // Transform Google Places results to standardized format
     const transformed = response.data.results.slice(0, 10).map(p => {
-      let photoUrl = "https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=600&auto=format&fit=crop&q=80";
-      if (p.photos && p.photos.length > 0) {
-        photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${p.photos[0].photo_reference}&key=${config.googlePlacesApiKey}`;
-      }
+      const photoReference = p.photos?.[0]?.photo_reference;
+      const photoUrl = "https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=600&auto=format&fit=crop&q=80";
 
       // Estimate price in IDR based on price_level
       let estimatedPrice = 20000;
@@ -60,6 +58,7 @@ export async function searchPlaces(intent = {}) {
         lng: p.geometry.location.lng,
         address: p.formatted_address || '',
         photoUrl,
+        photoReference,
         description: p.formatted_address || 'Destinasi populer rekomendasi Kelana.',
         openingHours: p.opening_hours && p.opening_hours.open_now ? "Sedang Buka" : "Buka setiap hari"
       };

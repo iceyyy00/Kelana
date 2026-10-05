@@ -14,16 +14,33 @@ class SavedItinerariesNotifier extends StateNotifier<List<Itinerary>> {
   }
 
   Future<void> loadSaved() async {
+    List<Itinerary> localItineraries = [];
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = prefs.getStringList(_storageKey) ?? [];
-      final loaded = jsonList.map((item) {
+      localItineraries = jsonList.map((item) {
         return Itinerary.fromJson(jsonDecode(item) as Map<String, dynamic>);
       }).toList();
 
-      state = loaded;
+      state = localItineraries;
     } catch (e) {
       print('[SavedItineraries] Error loading saved: $e');
+    }
+
+    try {
+      final remoteItineraries = await _apiClient.getItineraries();
+      final mergedItineraries = [...remoteItineraries];
+      final remoteIds = remoteItineraries.map((itinerary) => itinerary.id).toSet();
+      for (final itinerary in localItineraries) {
+        if (!remoteIds.contains(itinerary.id)) {
+          mergedItineraries.add(await _apiClient.saveItinerary(itinerary));
+        }
+      }
+      mergedItineraries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      state = mergedItineraries;
+      await _persist();
+    } catch (e) {
+      print('[SavedItineraries] Cloud sync unavailable; using local data: $e');
     }
   }
 
@@ -45,12 +62,27 @@ class SavedItinerariesNotifier extends StateNotifier<List<Itinerary>> {
 
     state = updatedList;
     await _persist();
-    await _apiClient.saveItinerary(savedCopy);
+    final persistedCopy = await _apiClient.saveItinerary(savedCopy);
+    if (persistedCopy.shareCode != savedCopy.shareCode) {
+      final persistedList = [...state];
+      final persistedIndex =
+          persistedList.indexWhere((i) => i.id == savedCopy.id);
+      if (persistedIndex >= 0) {
+        persistedList[persistedIndex] = persistedCopy;
+        state = persistedList;
+        await _persist();
+      }
+    }
   }
 
   Future<void> removeItinerary(String id) async {
     state = state.where((i) => i.id != id).toList();
     await _persist();
+    try {
+      await _apiClient.deleteItinerary(id);
+    } catch (e) {
+      print('[SavedItineraries] Cloud delete failed; kept local deletion: $e');
+    }
   }
 
   Future<void> togglePlaceVisited(String itineraryId, String placeId) async {
@@ -68,6 +100,10 @@ class SavedItinerariesNotifier extends StateNotifier<List<Itinerary>> {
     }).toList();
 
     await _persist();
+    final updated = state.where((itin) => itin.id == itineraryId);
+    if (updated.isNotEmpty) {
+      await _apiClient.saveItinerary(updated.first);
+    }
   }
 
   Future<void> _persist() async {

@@ -49,7 +49,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -139,7 +139,7 @@ class _MapViewWidgetState extends State<MapViewWidget> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.65),
+                  color: Colors.black.withValues(alpha: 0.65),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -244,7 +244,7 @@ class RouteCanvasPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // 1. Draw subtle grid background
     final gridPaint = Paint()
-      ..color = const Color(0xFF334155).withOpacity(0.3)
+      ..color = const Color(0xFF334155).withValues(alpha: 0.3)
       ..strokeWidth = 1;
 
     for (double x = 0; x < size.width; x += 30) {
@@ -274,7 +274,7 @@ class RouteCanvasPainter extends CustomPainter {
 
     // Outer glow for route
     final glowPaint = Paint()
-      ..color = const Color(0xFF14B8A6).withOpacity(0.3)
+      ..color = const Color(0xFF14B8A6).withValues(alpha: 0.3)
       ..strokeWidth = 8
       ..style = PaintingStyle.stroke;
     canvas.drawPath(path, glowPaint);

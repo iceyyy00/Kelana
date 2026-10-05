@@ -186,8 +186,8 @@ class _SavedItinerariesScreenState
                               ),
                               decoration: BoxDecoration(
                                 color: progress == 1.0
-                                    ? AppColors.success.withOpacity(0.12)
-                                    : AppColors.primary.withOpacity(0.1),
+                                    ? AppColors.success.withValues(alpha: 0.12)
+                                    : AppColors.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
