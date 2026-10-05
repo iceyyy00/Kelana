@@ -22,7 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       'location': 'Semarang',
       'image':
           'https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=600&auto=format&fit=crop&q=80',
-      'fallbackColor': Color(0xFF134E4A),
+      'fallbackColor': const Color(0xFF134E4A),
     },
     {
       'title': 'Candi Borobudur',
@@ -31,14 +31,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           'https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=600&auto=format&fit=crop&q=80',
       'rating': '4.9',
       'badge': 'Populer',
-      'fallbackColor': Color(0xFF0F766E),
+      'fallbackColor': const Color(0xFF0F766E),
     },
     {
       'title': 'Kota Lama',
       'location': 'Semarang',
       'image':
           'https://images.unsplash.com/photo-1578469550956-0e16b69c6a3d?w=600&auto=format&fit=crop&q=80',
-      'fallbackColor': Color(0xFF115E59),
+      'fallbackColor': const Color(0xFF115E59),
     },
   ];
 
@@ -113,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -143,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF0F766E).withOpacity(0.12),
+                            color: const Color(0xFF0F766E).withValues(alpha: 0.12),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
@@ -288,7 +288,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -335,7 +335,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -453,7 +453,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   side: const BorderSide(color: Color(0xFFE2E8F0)),
                   elevation: 1,
-                  shadowColor: Colors.black.withOpacity(0.04),
+                  shadowColor: Colors.black.withValues(alpha: 0.04),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -525,7 +525,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           color: item['fallbackColor'] as Color,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -568,7 +568,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(

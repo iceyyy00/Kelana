@@ -199,9 +199,9 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                           ),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Berikut rencana yang saya tangkap dari pesan Anda. Silakan periksa atau sesuaikan sebelum mencari rekomendasi tempat:',
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                          style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                         ),
                       ),
                     ),
@@ -217,11 +217,11 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            const Row(
                               children: [
-                                const Icon(Icons.check_circle_outline, color: AppColors.primary),
-                                const SizedBox(width: 8),
-                                const Text(
+                                Icon(Icons.check_circle_outline, color: AppColors.primary),
+                                SizedBox(width: 8),
+                                Text(
                                   'Konfirmasi Rencana Perjalanan',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,

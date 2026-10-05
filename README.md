@@ -68,85 +68,57 @@ Kelana/
 
 ---
 
-## 🚀 Cara Menjalankan
+## Menjalankan dan Mengonfigurasi
 
-### 1. Menjalankan backend lokal (opsional)
+### Firebase
 
-```bash
-npm --prefix backend install
-npm --prefix backend start
-```
-Server berjalan di `http://localhost:5000`.
-
-### 2. Menyiapkan Firebase, Gemini, Places, dan Firestore
-
-1. Gunakan project Firebase `kelana-f39b1`, aktifkan **Authentication** (Email/Password dan Anonymous), dan buat database **Cloud Firestore** di region `asia-southeast1` agar sejalan dengan region Functions. Deploy Cloud Functions memerlukan paket Blaze.
-2. Pada Google Cloud project yang sama, aktifkan **Places API** dan **Directions API** serta billing. Buat API key server untuk Places/Directions dan batasi key tersebut ke API yang digunakan; buat Gemini API key melalui Google AI Studio. Peta Flutter juga membutuhkan Maps SDK key terpisah yang dibatasi ke Android app dan website, lalu dipasang hanya pada konfigurasi platform.
-3. Dari root repository, instal Firebase CLI, login, lalu pilih project:
+1. Pilih Firebase project (repository default: `kelana-f39b1`), aktifkan Email/Password dan Anonymous di Authentication, lalu buat Cloud Firestore.
+2. Install and sign in to Firebase CLI, then configure the existing Flutter app (do not run `flutter create`):
 ```bash
 npm install --global firebase-tools
 firebase login
 firebase use --add
+cd kelana_app
+dart pub global activate flutterfire_cli
+flutterfire configure --project=kelana-f39b1 --platforms=android,ios
+flutter pub get
 ```
+FlutterFire registers the native Firebase apps and generates `lib/firebase_options.dart`. The current Android/iOS startup uses the native Firebase configuration; include the web platform in `flutterfire configure` and initialize with `DefaultFirebaseOptions.currentPlatform` before enabling Firebase on web.
+3. Firestore itinerary records are stored by the authenticated backend under `users/{uid}/itineraries`; deploy the included rules and function from the repository root:
+```bash
+firebase deploy --only firestore:rules,functions:backend
+```
+The backend verifies Firebase ID tokens. Its local development fallback stores itineraries in memory and is not persistent.
 
-4. Simpan API key sebagai Firebase secrets. Jangan masukkan key ke Flutter atau commit ke repository:
+### Gemini and Places
+
+Gemini intent parsing/itinerary ordering and Google Places/Directions searches run through the backend. Enable Places API and Directions API with billing in Google Cloud, and create a Gemini key in Google AI Studio. Set backend secrets (the CLI prompts for each value; do not commit keys):
 ```bash
 firebase functions:secrets:set GEMINI_API_KEY
 firebase functions:secrets:set GOOGLE_PLACES_API_KEY
 firebase functions:secrets:set GOOGLE_DIRECTIONS_API_KEY
 ```
-Places dan Directions dapat memakai key Google yang sama dengan mengatur kedua secret ke nilai yang sama.
+Places and Directions can use the same server key if it is restricted to those APIs. For local backend development, copy `backend/.env.example` to `backend/.env` and set the same server-side keys there.
 
-5. Deploy Firestore rules dan fungsi backend:
+### Native Maps SDK Keys
+
+Maps SDK keys are separate from the backend Places/Directions key. Restrict each key to its platform app and the Maps SDK; mobile keys are packaged in the app and are not secret storage.
+
+- Android: add `googleMapsApiKey=YOUR_ANDROID_KEY` to the ignored `kelana_app/android/local.properties`. The manifest reads it through the Gradle placeholder.
+- iOS: copy `kelana_app/ios/Flutter/Secrets.xcconfig.example` to `Secrets.xcconfig` in the same folder and set `GOOGLE_MAPS_API_KEY = YOUR_IOS_KEY`. That file is ignored by git and is read from `Info.plist` at startup.
+
+### Run
+
+The backend runs locally at `http://localhost:5000`:
 ```bash
 npm --prefix backend install
-firebase deploy --only firestore:rules,functions:backend
+npm --prefix backend start
 ```
-Cloud Function API base URL: `https://asia-southeast1-kelana-f39b1.cloudfunctions.net/backend`. Fungsi memverifikasi Firebase ID token dan menyimpan itinerary di `users/{uid}/itineraries`.
-
-### 3. Menyiapkan dan menjalankan Flutter
-
-Checkout ini belum menyertakan direktori platform Android/web. Dari `kelana_app`, buat target tersebut, lalu daftarkan app Firebase:
-
+The Flutter app defaults to the deployed function URL. To target a local backend, pass the platform-appropriate URL, for example:
 ```bash
 cd kelana_app
-flutter create --platforms=android,web .
-dart pub global activate flutterfire_cli
-flutterfire configure --project=kelana-f39b1
-flutter pub get
+flutter run --dart-define=KELANA_API_BASE_URL=http://10.0.2.2:5000
 ```
+Use `http://localhost:5000` for an iOS simulator. Verify the backend with `npm --prefix backend test` while it is running.
 
-`flutterfire configure` menghasilkan `lib/firebase_options.dart`. Untuk web (dan konfigurasi lintas platform yang eksplisit), import file tersebut di `lib/main.dart` lalu inisialisasi Firebase seperti berikut:
-```dart
-await Firebase.initializeApp(
-  options: DefaultFirebaseOptions.currentPlatform,
-);
-```
-Tambahkan Maps SDK key yang dibatasi ke app Android pada `<application>` di `android/app/src/main/AndroidManifest.xml`:
-```xml
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="YOUR_ANDROID_MAPS_SDK_KEY" />
-```
-Untuk web, tambahkan script Maps JavaScript API dengan website-restricted key ke `<head>` di `web/index.html`:
-```html
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_WEB_MAPS_SDK_KEY"></script>
-```
-Jangan memakai API key server pada salah satu file platform.
-
-Jalankan aplikasi terhadap Cloud Function (URL tersebut sudah menjadi default; `--dart-define` tetap dapat dipakai untuk override):
-```bash
-flutter run --dart-define=KELANA_API_BASE_URL=https://asia-southeast1-kelana-f39b1.cloudfunctions.net/backend
-```
-Untuk kerja lokal, jalankan `npm --prefix backend start` lalu override URL untuk platform target, misalnya `--dart-define=KELANA_API_BASE_URL=http://10.0.2.2:5000` pada Android emulator atau `http://localhost:5000` pada web. Backend lokal beralih ke dataset fallback bila API key tidak tersedia dan memakai identitas `local-development`; itinerary lokal disimpan in-memory. Perangkat fisik dapat menggunakan URL backend lokal melalui **Profil > Konfigurasi Backend Proxy**, misalnya `http://192.168.1.10:5000`.
-
-Tes endpoint backend lokal dengan server berjalan:
-```bash
-npm --prefix backend test
-```
-
----
-
-## 🔒 Keamanan API Key
-
-Seluruh API key pihak ketiga (**Gemini**, **Google Places**, **Google Directions**) hanya diakses backend. Saat deploy, simpan sebagai Firebase Functions secrets; untuk backend lokal gunakan `backend/.env` (tidak dilacak git). Jangan pernah menyimpan key tersebut di aplikasi Flutter.
+Firebase client configuration (project identifiers and Firebase client API key) is not a substitute for security rules. Restrict Google Maps keys by platform and API, keep Gemini/Places/Directions keys in backend secrets, and never put server keys in Flutter code.

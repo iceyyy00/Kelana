@@ -84,10 +84,10 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
                         children: [
                           const Icon(Icons.auto_awesome, size: 16, color: AppColors.secondary),
                           const SizedBox(width: 6),
-                          Expanded(
+                          const Expanded(
                             child: Text(
                               'Pilih tempat yang ingin Anda kunjungi:',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.textPrimary,
