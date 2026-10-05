@@ -1,6 +1,6 @@
 # 🧭 Kelana — AI Itinerary Planner App
 
-Aplikasi perencana perjalanan cerdas berbasis **Flutter**, **Firebase**, dan **Node.js Express Backend Proxy** yang mengintegrasikan **Gemini API** (Natural Language Understanding & Reasoning) dan **Google Places + Directions API**. Backend dapat dijalankan lokal atau di-deploy sebagai **Firebase Cloud Function**.
+Aplikasi perencana perjalanan cerdas berbasis **Flutter**, **Firebase**, dan **Node.js Express Backend Proxy** yang mengintegrasikan **Gemini API**, **Photon/OpenStreetMap** untuk pencarian tempat, dan **Google Directions API** untuk rute. Backend dapat dijalankan lokal atau di-deploy sebagai **Firebase Cloud Function**.
 
 ---
 
@@ -11,9 +11,9 @@ Aplikasi perencana perjalanan cerdas berbasis **Flutter**, **Firebase**, dan **N
    - Backend memproses via Gemini Structured Output untuk mengekstrak: lokasi, estimasi budget, kategori, waktu/durasi, dan jumlah orang.
 2. **Kartu Konfirmasi Rencana**:
    - User dapat mengoreksi atau mengubah field intent sebelum mencari tempat.
-3. **Data Tempat Nyata (Google Places API)**:
-   - Menghasilkan rekomendasi tempat akurat lengkap dengan rating, estimasi harga tiket/makan, jam buka, dan foto.
-   - Dilengkapi fallback cerdas dataset wisata Indonesia (Semarang, Yogyakarta, Bandung, Bali) sehingga aplikasi tetap dapat didemokan secara offline/tanpa kuota API.
+3. **Pencarian Tempat (Photon/OpenStreetMap)**:
+   - Menghasilkan rekomendasi tempat dari data OSM, termasuk nama, kategori, alamat, dan koordinat. Photon tidak menyediakan rating, harga, atau foto.
+   - Dilengkapi fallback dataset wisata Indonesia (Semarang, Yogyakarta, Bandung, Bali) sehingga aplikasi tetap dapat didemokan tanpa koneksi Photon.
 4. **Itinerary Builder & Reasoning (Gemini + Directions API)**:
    - Gemini menyusun urutan kunjungan terbaik dengan mempertimbangkan jam operasional dan waktu makan siang/sore.
    - Google Directions API menghitung estimasi jarak & durasi perjalanan antar tempat.
@@ -53,7 +53,7 @@ Kelana/
 │   │   │   ├── chat/              # Conversational parser & Intent Confirmation Screen
 │   │   │   ├── home/              # Home Screen & Quick Prompts
 │   │   │   ├── itinerary/         # Interactive Map, Reorderable List, Travel Time
-│   │   │   ├── places/            # Google Places recommendation cards & selection
+│   │   │   ├── places/            # Photon/OSM recommendation cards & selection
 │   │   │   ├── profile/           # Preferences & Server URL Config
 │   │   │   ├── saved/             # Saved itineraries list & Share Code importer
 │   │   │   └── splash/            # Animated Splash Screen
@@ -90,19 +90,18 @@ firebase deploy --only firestore:rules,functions:backend
 ```
 The backend verifies Firebase ID tokens. Its local development fallback stores itineraries in memory and is not persistent.
 
-### Gemini and Places
+### Gemini, Photon, and Directions
 
-Gemini intent parsing/itinerary ordering and Google Places/Directions searches run through the backend. Enable Places API and Directions API with billing in Google Cloud, and create a Gemini key in Google AI Studio. Set backend secrets (the CLI prompts for each value; do not commit keys):
+Gemini intent parsing/itinerary ordering and Google Directions routing run through the backend. Place search uses the public Photon API backed by OpenStreetMap and requires no API key. Create a Gemini key in Google AI Studio and enable the Directions API in Google Cloud. Set backend secrets (the CLI prompts for each value; do not commit keys):
 ```bash
 firebase functions:secrets:set GEMINI_API_KEY
-firebase functions:secrets:set GOOGLE_PLACES_API_KEY
 firebase functions:secrets:set GOOGLE_DIRECTIONS_API_KEY
 ```
-Places and Directions can use the same server key if it is restricted to those APIs. For local backend development, copy `backend/.env.example` to `backend/.env` and set the same server-side keys there.
+For local backend development, copy `backend/.env.example` to `backend/.env` and set the server-side keys there.
 
 ### Native Maps SDK Keys
 
-Maps SDK keys are separate from the backend Places/Directions key. Restrict each key to its platform app and the Maps SDK; mobile keys are packaged in the app and are not secret storage.
+Maps SDK keys are separate from the backend Directions key. Restrict each key to its platform app and the Maps SDK; mobile keys are packaged in the app and are not secret storage.
 
 - Android: add `googleMapsApiKey=YOUR_ANDROID_KEY` to the ignored `kelana_app/android/local.properties`. The manifest reads it through the Gradle placeholder.
 - iOS: copy `kelana_app/ios/Flutter/Secrets.xcconfig.example` to `Secrets.xcconfig` in the same folder and set `GOOGLE_MAPS_API_KEY = YOUR_IOS_KEY`. That file is ignored by git and is read from `Info.plist` at startup.
@@ -114,11 +113,11 @@ The backend runs locally at `http://localhost:5000`:
 npm --prefix backend install
 npm --prefix backend start
 ```
-The Flutter app defaults to the deployed function URL. To target a local backend, pass the platform-appropriate URL, for example:
+Flutter web defaults to `http://localhost:5000`; Android emulators use `http://10.0.2.2:5000`, and iOS simulators use `http://localhost:5000`. To use a remote backend, pass its deployed function URL explicitly:
 ```bash
 cd kelana_app
-flutter run --dart-define=KELANA_API_BASE_URL=http://10.0.2.2:5000
+flutter run --dart-define=KELANA_API_BASE_URL=https://asia-southeast1-kelana-f39b1.cloudfunctions.net/backend
 ```
-Use `http://localhost:5000` for an iOS simulator. Verify the backend with `npm --prefix backend test` while it is running.
+Verify the backend with `npm --prefix backend test` while it is running.
 
 Firebase client configuration (project identifiers and Firebase client API key) is not a substitute for security rules. Restrict Google Maps keys by platform and API, keep Gemini/Places/Directions keys in backend secrets, and never put server keys in Flutter code.

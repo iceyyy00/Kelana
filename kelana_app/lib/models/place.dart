@@ -6,6 +6,15 @@ class Place {
   final int userRatingsTotal;
   final int priceLevel;
   final int estimatedPrice;
+  final int estimatedCostMin;
+  final int estimatedCostMax;
+  final String budgetCategory;
+  final String budgetTier;
+  final String osmKey;
+  final String osmValue;
+  final String cuisine;
+  final String stars;
+  final String fee;
   final double lat;
   final double lng;
   final String address;
@@ -27,6 +36,15 @@ class Place {
     required this.userRatingsTotal,
     required this.priceLevel,
     required this.estimatedPrice,
+    this.estimatedCostMin = 0,
+    this.estimatedCostMax = 0,
+    this.budgetCategory = 'other',
+    this.budgetTier = 'moderate',
+    this.osmKey = '',
+    this.osmValue = '',
+    this.cuisine = '',
+    this.stars = '',
+    this.fee = '',
     required this.lat,
     required this.lng,
     required this.address,
@@ -41,15 +59,54 @@ class Place {
     this.activityTip,
   });
 
+  String get budgetTierLabel => switch (budgetTier) {
+        'free' => 'Gratis',
+        'budget' => 'Hemat',
+        'moderate' => 'Standar',
+        'luxury' => 'Premium',
+        _ => 'Estimasi',
+      };
+
+  bool get hasUsableName {
+    final normalizedName = name.trim();
+    final letterCount =
+        RegExp(r'\p{L}', unicode: true).allMatches(normalizedName).length;
+    final digitCount =
+        RegExp(r'\p{N}', unicode: true).allMatches(normalizedName).length;
+    final alphaNumericCount = letterCount + digitCount;
+
+    return normalizedName.length >= 3 &&
+        normalizedName.length <= 100 &&
+        letterCount >= 3 &&
+        alphaNumericCount > 0 &&
+        letterCount / alphaNumericCount >= 0.5 &&
+        !RegExp(
+          r'^(?:unknown|unnamed|no name|unclassified|object|node|way)\b',
+          caseSensitive: false,
+        ).hasMatch(normalizedName);
+  }
+
   factory Place.fromJson(Map<String, dynamic> json) {
+    final estimatedPrice = (json['estimatedPrice'] as num?)?.toInt() ?? 20000;
     return Place(
       placeId: json['placeId'] as String? ?? '',
       name: json['name'] as String? ?? 'Destinasi',
       category: json['category'] as String? ?? 'Wisata',
-      rating: (json['rating'] as num?)?.toDouble() ?? 4.5,
-      userRatingsTotal: (json['userRatingsTotal'] as num?)?.toInt() ?? 100,
+      rating: (json['rating'] as num?)?.toDouble() ?? 0,
+      userRatingsTotal: (json['userRatingsTotal'] as num?)?.toInt() ?? 0,
       priceLevel: (json['priceLevel'] as num?)?.toInt() ?? 1,
-      estimatedPrice: (json['estimatedPrice'] as num?)?.toInt() ?? 20000,
+      estimatedPrice: estimatedPrice,
+      estimatedCostMin:
+          (json['estimatedCostMin'] as num?)?.toInt() ?? estimatedPrice,
+      estimatedCostMax:
+          (json['estimatedCostMax'] as num?)?.toInt() ?? estimatedPrice,
+      budgetCategory: json['budgetCategory'] as String? ?? 'other',
+      budgetTier: json['budgetTier'] as String? ?? 'moderate',
+      osmKey: json['osmKey'] as String? ?? '',
+      osmValue: json['osmValue'] as String? ?? '',
+      cuisine: json['cuisine'] as String? ?? '',
+      stars: json['stars']?.toString() ?? '',
+      fee: json['fee']?.toString() ?? '',
       lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
       lng: (json['lng'] as num?)?.toDouble() ?? 0.0,
       address: json['address'] as String? ?? '',
@@ -76,6 +133,15 @@ class Place {
       'userRatingsTotal': userRatingsTotal,
       'priceLevel': priceLevel,
       'estimatedPrice': estimatedPrice,
+      'estimatedCostMin': estimatedCostMin,
+      'estimatedCostMax': estimatedCostMax,
+      'budgetCategory': budgetCategory,
+      'budgetTier': budgetTier,
+      'osmKey': osmKey,
+      'osmValue': osmValue,
+      'cuisine': cuisine,
+      'stars': stars,
+      'fee': fee,
       'lat': lat,
       'lng': lng,
       'address': address,
@@ -99,6 +165,15 @@ class Place {
     int? userRatingsTotal,
     int? priceLevel,
     int? estimatedPrice,
+    int? estimatedCostMin,
+    int? estimatedCostMax,
+    String? budgetCategory,
+    String? budgetTier,
+    String? osmKey,
+    String? osmValue,
+    String? cuisine,
+    String? stars,
+    String? fee,
     double? lat,
     double? lng,
     String? address,
@@ -120,6 +195,15 @@ class Place {
       userRatingsTotal: userRatingsTotal ?? this.userRatingsTotal,
       priceLevel: priceLevel ?? this.priceLevel,
       estimatedPrice: estimatedPrice ?? this.estimatedPrice,
+      estimatedCostMin: estimatedCostMin ?? this.estimatedCostMin,
+      estimatedCostMax: estimatedCostMax ?? this.estimatedCostMax,
+      budgetCategory: budgetCategory ?? this.budgetCategory,
+      budgetTier: budgetTier ?? this.budgetTier,
+      osmKey: osmKey ?? this.osmKey,
+      osmValue: osmValue ?? this.osmValue,
+      cuisine: cuisine ?? this.cuisine,
+      stars: stars ?? this.stars,
+      fee: fee ?? this.fee,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
       address: address ?? this.address,

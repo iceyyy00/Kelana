@@ -35,7 +35,11 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
     // Filter by category if selected
     final filteredPlaces = _selectedCategoryFilter == 'Semua'
         ? places
-        : places.where((p) => p.category.toLowerCase().contains(_selectedCategoryFilter.toLowerCase())).toList();
+        : places
+            .where((p) => p.category
+                .toLowerCase()
+                .contains(_selectedCategoryFilter.toLowerCase()))
+            .toList();
 
     final currencyFormatter = NumberFormat.currency(
       locale: 'id_ID',
@@ -45,6 +49,11 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
 
     final totalSelectedCost =
         selectedPlaces.fold(0, (sum, p) => sum + p.estimatedPrice);
+    final budgetLimit = intent?.budget ?? 0;
+    final isOverBudget = budgetLimit > 0 && totalSelectedCost > budgetLimit;
+    final budgetProgress = budgetLimit > 0
+        ? (totalSelectedCost / budgetLimit).clamp(0.0, 1.0).toDouble()
+        : 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -75,14 +84,16 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
               children: [
                 // Top Info & Filter Bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   color: Colors.white,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.auto_awesome, size: 16, color: AppColors.secondary),
+                          const Icon(Icons.auto_awesome,
+                              size: 16, color: AppColors.secondary),
                           const SizedBox(width: 6),
                           const Expanded(
                             child: Text(
@@ -116,6 +127,7 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
                             'Wisata Sejarah',
                             'Wisata Budaya',
                             'Wisata Alam',
+                            'Akomodasi',
                           ].map((cat) {
                             final isSel = _selectedCategoryFilter == cat;
                             return Padding(
@@ -123,11 +135,16 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
                               child: ChoiceChip(
                                 label: Text(cat),
                                 selected: isSel,
-                                selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                                selectedColor:
+                                    AppColors.primary.withValues(alpha: 0.15),
                                 labelStyle: TextStyle(
                                   fontSize: 12,
-                                  color: isSel ? AppColors.primary : AppColors.textPrimary,
-                                  fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                  color: isSel
+                                      ? AppColors.primary
+                                      : AppColors.textPrimary,
+                                  fontWeight: isSel
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                                 ),
                                 onSelected: (_) {
                                   setState(() {
@@ -206,12 +223,30 @@ class _RecommendationsScreenState extends ConsumerState<RecommendationsScreen> {
                                 ),
                               ),
                               Text(
-                                'Est. Tiket/Makan: ${currencyFormatter.format(totalSelectedCost)}',
-                                style: const TextStyle(
+                                budgetLimit > 0
+                                    ? 'Est. maks: ${currencyFormatter.format(totalSelectedCost)} / ${currencyFormatter.format(budgetLimit)}'
+                                    : 'Est. maks: ${currencyFormatter.format(totalSelectedCost)}',
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textSecondary,
+                                  color: isOverBudget
+                                      ? Colors.redAccent
+                                      : AppColors.textSecondary,
                                 ),
                               ),
+                              if (budgetLimit > 0) ...[
+                                const SizedBox(height: 4),
+                                SizedBox(
+                                  width: 150,
+                                  child: LinearProgressIndicator(
+                                    value: budgetProgress,
+                                    minHeight: 4,
+                                    color: isOverBudget
+                                        ? Colors.redAccent
+                                        : AppColors.primary,
+                                    backgroundColor: AppColors.border,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

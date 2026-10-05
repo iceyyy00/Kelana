@@ -166,7 +166,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: TextField(
                             controller: _searchController,
                             decoration: const InputDecoration(
-                              hintText: 'Contoh: hari ini ke Semarang 100rb kuliner...',
+                              hintText:
+                                  'Contoh: hari ini ke Semarang 100rb kuliner...',
                               hintStyle: TextStyle(
                                 fontSize: 13,
                                 color: Colors.black38,
@@ -338,8 +339,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         vertical: 8,
                       ),
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                        child: const Icon(Icons.place, color: AppColors.primary),
+                        backgroundColor:
+                            AppColors.primary.withValues(alpha: 0.1),
+                        child:
+                            const Icon(Icons.place, color: AppColors.primary),
                       ),
                       title: Text(
                         itin.title,
@@ -351,8 +354,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                       onTap: () {
-                        // Open itinerary detail
-                        ref.read(tripCreationProvider.notifier).reset();
+                        ref
+                            .read(tripCreationProvider.notifier)
+                            .openItinerary(itin);
                         context.push('/itinerary');
                       },
                     ),

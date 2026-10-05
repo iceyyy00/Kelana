@@ -46,6 +46,7 @@ class ApiClient {
     // Logging interceptor
     _dio.interceptors.add(
       LogInterceptor(
+        requestHeader: false,
         requestBody: true,
         responseBody: true,
         logPrint: (obj) => print('[DIO] $obj'),
@@ -112,16 +113,10 @@ class ApiClient {
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final list = response.data['data'] as List<dynamic>;
-        return list.map((item) {
-          final placeJson =
-              Map<String, dynamic>.from(item as Map<String, dynamic>);
-          final photoReference = placeJson['photoReference'] as String?;
-          if (photoReference != null && photoReference.isNotEmpty) {
-            placeJson['photoUrl'] =
-                '${_dio.options.baseUrl}api/place-photos?reference=${Uri.encodeQueryComponent(photoReference)}';
-          }
-          return Place.fromJson(placeJson);
-        }).toList();
+        return list
+            .map((item) => Place.fromJson(
+                Map<String, dynamic>.from(item as Map<String, dynamic>)))
+            .toList();
       }
       throw Exception(response.data['error'] ?? 'Gagal mencari tempat.');
     } catch (e) {
