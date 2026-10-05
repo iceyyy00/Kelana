@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/trip_creation_provider.dart';
 import '../../models/parsed_intent.dart';
@@ -20,6 +21,8 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
   late TextEditingController _budgetController;
   late TextEditingController _timeController;
   int _peopleCount = 1;
+  int _foodBudgetPercent = 50;
+  int _accommodationBudgetPercent = 20;
   List<String> _selectedCategories = [];
 
   final List<String> _availableCategories = [
@@ -28,6 +31,7 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
     'Wisata Alam',
     'Spot Foto & Estetik',
     'Belanja',
+    'Akomodasi',
     'Religi & Budaya',
     'Hidden Gem',
   ];
@@ -60,7 +64,56 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
       _timeController.text = intent.dateTime;
     }
     _peopleCount = intent.peopleCount;
+    _foodBudgetPercent = intent.foodBudgetPercent.clamp(0, 100);
+    _accommodationBudgetPercent = intent.accommodationBudgetPercent
+      .clamp(0, 100 - _foodBudgetPercent);
     _selectedCategories = [...intent.categories];
+  }
+
+  int _durationDays(String value) {
+    final match =
+        RegExp(r'(\d+)\s*hari', caseSensitive: false).firstMatch(value);
+    if (match != null) return int.tryParse(match.group(1)!) ?? 1;
+    return value.toLowerCase().contains('pekan') ||
+            value.toLowerCase().contains('weekend')
+        ? 2
+        : 1;
+  }
+
+  String _budgetLevel(int budget) {
+    if (budget <= 0) return 'unspecified';
+    final dailyPerPerson =
+        budget / _peopleCount / _durationDays(_timeController.text);
+    if (dailyPerPerson <= 150000) return 'budget';
+    if (dailyPerPerson <= 500000) return 'moderate';
+    return 'luxury';
+  }
+
+  String _budgetTierSummary(int budget) {
+    final dailyPerPerson = budget <= 0
+        ? 0
+        : (budget / _peopleCount / _durationDays(_timeController.text)).round();
+    final tier = switch (_budgetLevel(budget)) {
+      'budget' => 'Hemat',
+      'moderate' => 'Standar',
+      'luxury' => 'Premium',
+      _ => 'Belum ditentukan',
+    };
+    final dailyLabel = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    ).format(dailyPerPerson);
+    return 'Tier $tier · $dailyLabel/orang/hari';
+  }
+
+  String _allocationAmount(int percent) {
+    final budget = int.tryParse(_budgetController.text) ?? 0;
+    return NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    ).format((budget * percent / 100).round());
   }
 
   void _confirmAndProceed() async {
@@ -68,12 +121,23 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
     final currentIntent = ref.read(tripCreationProvider).parsedIntent;
 
     if (currentIntent == null) return;
+    if (_locationController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Masukkan kota atau destinasi terlebih dahulu.')),
+      );
+      return;
+    }
 
     final updatedIntent = currentIntent.copyWith(
       location: _locationController.text.trim().isNotEmpty
           ? _locationController.text.trim()
           : currentIntent.location,
       budget: int.tryParse(_budgetController.text) ?? currentIntent.budget,
+      budgetLevel: _budgetLevel(
+        int.tryParse(_budgetController.text) ?? currentIntent.budget,
+      ),
+      foodBudgetPercent: _foodBudgetPercent,
+      accommodationBudgetPercent: _accommodationBudgetPercent,
       dateTime: _timeController.text.trim().isNotEmpty
           ? _timeController.text.trim()
           : currentIntent.dateTime,
@@ -99,7 +163,6 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
       _syncIntentToControllers(intent);
     }
 
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Asisten Kelana (AI)'),
@@ -122,7 +185,8 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                       alignment: Alignment.centerRight,
                       child: Container(
                         margin: const EdgeInsets.only(left: 40, bottom: 16),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         decoration: const BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.only(
@@ -133,7 +197,8 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                         ),
                         child: Text(
                           tripState.rawQuery,
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 14),
                         ),
                       ),
                     ),
@@ -153,13 +218,16 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                           const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.primary),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              tripState.loadingMessage ?? 'Gemini sedang berpikir...',
-                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              tripState.loadingMessage ??
+                                  'Gemini sedang berpikir...',
+                              style: const TextStyle(
+                                  fontSize: 13, color: AppColors.textSecondary),
                             ),
                           ),
                         ],
@@ -178,7 +246,8 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                       ),
                       child: Text(
                         tripState.errorMessage!,
-                        style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+                        style:
+                            TextStyle(color: Colors.red.shade900, fontSize: 13),
                       ),
                     ),
 
@@ -189,7 +258,8 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                       alignment: Alignment.centerLeft,
                       child: Container(
                         margin: const EdgeInsets.only(right: 40, bottom: 12),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: const BorderRadius.only(
@@ -199,9 +269,10 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                           ),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Berikut rencana yang saya tangkap dari pesan Anda. Silakan periksa atau sesuaikan sebelum mencari rekomendasi tempat:',
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                          style: TextStyle(
+                              color: AppColors.textPrimary, fontSize: 14),
                         ),
                       ),
                     ),
@@ -210,18 +281,20 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                       elevation: 2,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(18),
-                        side: const BorderSide(color: AppColors.primary, width: 1.5),
+                        side: const BorderSide(
+                            color: AppColors.primary, width: 1.5),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(18),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            const Row(
                               children: [
-                                const Icon(Icons.check_circle_outline, color: AppColors.primary),
-                                const SizedBox(width: 8),
-                                const Text(
+                                Icon(Icons.check_circle_outline,
+                                    color: AppColors.primary),
+                                SizedBox(width: 8),
+                                Text(
                                   'Konfirmasi Rencana Perjalanan',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
@@ -234,7 +307,9 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                             const Divider(height: 24),
 
                             // Destination / Location
-                            const Text('📍 Kota / Destinasi:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            const Text('📍 Kota / Destinasi:',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 13)),
                             const SizedBox(height: 4),
                             TextField(
                               controller: _locationController,
@@ -246,23 +321,83 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                             const SizedBox(height: 14),
 
                             // Budget
-                            const Text('💰 Estimasi Budget (IDR):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            const Text('💰 Estimasi Budget (IDR):',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 13)),
                             const SizedBox(height: 4),
                             TextField(
                               controller: _budgetController,
                               keyboardType: TextInputType.number,
+                              onChanged: (_) => setState(() {}),
                               decoration: const InputDecoration(
                                 prefixText: 'Rp ',
                                 isDense: true,
                               ),
                             ),
+                            const SizedBox(height: 5),
+                            Text(
+                              '${_budgetTierSummary(int.tryParse(_budgetController.text) ?? 0)} · belum termasuk transportasi',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Makan · $_foodBudgetPercent% · ${_allocationAmount(_foodBudgetPercent)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Slider(
+                              value: _foodBudgetPercent.toDouble(),
+                              min: 0,
+                              max: (80 < 100 - _accommodationBudgetPercent
+                                      ? 80
+                                      : 100 - _accommodationBudgetPercent)
+                                  .toDouble(),
+                              divisions: 20,
+                              onChanged: (value) => setState(() {
+                                _foodBudgetPercent = value.round();
+                              }),
+                            ),
+                            Text(
+                              'Akomodasi · $_accommodationBudgetPercent% · ${_allocationAmount(_accommodationBudgetPercent)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Slider(
+                              value: _accommodationBudgetPercent.toDouble(),
+                              min: 0,
+                              max: (80 < 100 - _foodBudgetPercent
+                                      ? 80
+                                      : 100 - _foodBudgetPercent)
+                                  .toDouble(),
+                              divisions: 20,
+                              onChanged: (value) => setState(() {
+                                _accommodationBudgetPercent = value.round();
+                              }),
+                            ),
+                            Text(
+                              'Aktivitas & sisa · ${100 - _foodBudgetPercent - _accommodationBudgetPercent}% · ${_allocationAmount(100 - _foodBudgetPercent - _accommodationBudgetPercent)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                             const SizedBox(height: 14),
 
                             // Waktu / Durasi
-                            const Text('📅 Waktu / Durasi:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            const Text('📅 Waktu / Durasi:',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 13)),
                             const SizedBox(height: 4),
                             TextField(
                               controller: _timeController,
+                              onChanged: (_) => setState(() {}),
                               decoration: const InputDecoration(
                                 hintText: 'Contoh: Hari ini, Akhir pekan...',
                                 isDense: true,
@@ -274,22 +409,29 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('👥 Jumlah Orang:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                const Text('👥 Jumlah Orang:',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13)),
                                 Row(
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.remove_circle_outline),
+                                      icon: const Icon(
+                                          Icons.remove_circle_outline),
                                       onPressed: _peopleCount > 1
                                           ? () => setState(() => _peopleCount--)
                                           : null,
                                     ),
                                     Text(
                                       '$_peopleCount orang',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.add_circle_outline),
-                                      onPressed: () => setState(() => _peopleCount++),
+                                      icon:
+                                          const Icon(Icons.add_circle_outline),
+                                      onPressed: () =>
+                                          setState(() => _peopleCount++),
                                     ),
                                   ],
                                 ),
@@ -298,22 +440,30 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                             const SizedBox(height: 14),
 
                             // Categories
-                            const Text('🏷️ Kategori Minat:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            const Text('🏷️ Kategori Minat:',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 13)),
                             const SizedBox(height: 8),
                             Wrap(
                               spacing: 8,
                               runSpacing: 6,
                               children: _availableCategories.map((cat) {
-                                final isSelected = _selectedCategories.contains(cat);
+                                final isSelected =
+                                    _selectedCategories.contains(cat);
                                 return FilterChip(
                                   label: Text(cat),
                                   selected: isSelected,
-                                  selectedColor: AppColors.primary.withValues(alpha: 0.18),
+                                  selectedColor:
+                                      AppColors.primary.withValues(alpha: 0.18),
                                   checkmarkColor: AppColors.primary,
                                   labelStyle: TextStyle(
                                     fontSize: 12,
-                                    color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.textPrimary,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
                                   onSelected: (selected) {
                                     setState(() {
@@ -334,7 +484,9 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: tripState.isLoading ? null : _confirmAndProceed,
+                                onPressed: tripState.isLoading
+                                    ? null
+                                    : _confirmAndProceed,
                                 child: const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -370,11 +522,14 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                     decoration: const InputDecoration(
                       hintText: 'Ketik revisi (misal: ganti ke Jogja 150rb)...',
                       isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
                     onSubmitted: (text) {
                       if (text.trim().isNotEmpty) {
-                        ref.read(tripCreationProvider.notifier).submitPrompt(text);
+                        ref
+                            .read(tripCreationProvider.notifier)
+                            .submitPrompt(text);
                         _chatInputController.clear();
                       }
                     },
@@ -382,11 +537,14 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                  icon:
+                      const Icon(Icons.send_rounded, color: AppColors.primary),
                   onPressed: () {
                     final text = _chatInputController.text.trim();
                     if (text.isNotEmpty) {
-                      ref.read(tripCreationProvider.notifier).submitPrompt(text);
+                      ref
+                          .read(tripCreationProvider.notifier)
+                          .submitPrompt(text);
                       _chatInputController.clear();
                     }
                   },

@@ -8,13 +8,13 @@ Aplikasi mobile berbasis **Flutter** yang membantu user membuat rencana perjalan
 
 Aplikasi akan:
 1. Memahami permintaan user menggunakan **Gemini API** (natural language understanding)
-2. Mencari tempat nyata yang relevan menggunakan **Google Places API**
+2. Mencari tempat nyata yang relevan menggunakan **Photon API dengan data OpenStreetMap**
 3. Menyusun rekomendasi menjadi **itinerary terstruktur** (urutan kunjungan, estimasi waktu tempuh, rute)
 4. Menampilkan hasil dalam **peta interaktif**
 5. Menyimpan itinerary sehingga bisa diakses, diedit, dan dibagikan kembali
 
 ### Pembeda dari chatbot biasa (ChatGPT/Gemini langsung)
-- Data tempat **real-time dan akurat** dari Google Places (bukan halusinasi LLM)
+- Data tempat dari OpenStreetMap melalui Photon, bukan hasil generasi LLM. Photon tidak menyediakan rating, harga, atau foto.
 - Output berupa **itinerary tersimpan & bisa dieksekusi** (bukan sekadar teks jawaban)
 - Ada **peta visual interaktif**, bukan hanya teks
 - Ada **personalisasi berbasis histori** pemakaian user
@@ -38,10 +38,10 @@ LLM (Gemini) berperan sebagai **reasoning layer di balik layar**, bukan produk u
 | Routing | `go_router` |
 | Backend/API proxy | Firebase Cloud Functions / Node.js (Express) / Python (FastAPI) — pilih salah satu |
 | AI | Gemini API (chat & structured output/function calling) |
-| Places data | Google Places API |
+| Places data | Photon API (OpenStreetMap) |
 | Rute & estimasi waktu tempuh | Google Directions API |
 
-> **Penting:** Gemini API dan Google Places API **tidak boleh dipanggil langsung dari Flutter**. Semua request harus lewat backend proxy agar API key tidak ter-expose di client, dan agar logic tambahan (gabungan hasil Gemini + Places) bisa diproses di server.
+> **Penting:** Gemini API dan Photon **diakses melalui backend proxy** agar pencarian tempat dapat digabungkan dengan intent dan fallback data. Photon tidak memerlukan API key.
 
 ---
 
@@ -57,9 +57,9 @@ Flutter App ──► Backend (API key aman di sini)
         │     - Extract intent: lokasi, budget, kategori, waktu, jumlah orang
         │     - Return structured JSON (bukan free text)
         │
-        ├──► Google Places API
-        │     - Search tempat berdasarkan hasil ekstraksi
-        │     - Filter berdasarkan rating, price_level, jarak
+        ├──► Photon API (OpenStreetMap)
+        │     - Geocode lokasi berdasarkan hasil ekstraksi
+        │     - Cari POI terdekat berdasarkan tag kategori OSM
         │
         ├──► Gemini API (tahap 2)
         │     - Susun tempat hasil pencarian menjadi itinerary berurutan
@@ -94,9 +94,9 @@ Flutter tampilkan: hasil rekomendasi, itinerary, peta interaktif
 - [ ] Tampilkan hasil ekstraksi ke user untuk konfirmasi/koreksi sebelum lanjut
 
 **Pencarian Tempat**
-- [ ] Query ke Google Places API berdasarkan hasil parsing
-- [ ] Filter berdasarkan budget (price_level), rating, jarak
-- [ ] Tampilkan list hasil: nama, foto, rating, estimasi harga, jarak
+- [ ] Geocode lokasi dan cari POI terdekat melalui Photon berdasarkan hasil parsing
+- [ ] Filter hasil berdasarkan kategori dan jarak; rating dan harga tidak tersedia dari Photon
+- [ ] Tampilkan list hasil: nama, kategori, alamat, koordinat, estimasi biaya aplikasi
 
 **Itinerary Builder**
 - [ ] Gemini susun urutan kunjungan optimal (pertimbangkan jarak & jam operasional)
@@ -158,11 +158,12 @@ itineraries/{itineraryId}
   - parsedIntent: { location, budget, category, date, peopleCount }
   - places: [
       {
-        placeId (dari Google Places),
+        placeId (tipe dan ID objek OpenStreetMap),
         name,
         category,
-        estimatedPrice,
-        rating,
+        address,
+        estimatedPrice (estimasi aplikasi atau data fallback; bukan data Photon),
+        rating (hanya tersedia pada data fallback),
         lat, lng,
         order (urutan kunjungan),
         visited (boolean),
@@ -188,7 +189,7 @@ history_interactions/{interactionId}
 | Endpoint | Method | Fungsi |
 |---|---|---|
 | `/parse-intent` | POST | Kirim raw text user → return hasil ekstraksi terstruktur dari Gemini |
-| `/search-places` | POST | Kirim hasil ekstraksi → return list tempat dari Google Places API |
+| `/search-places` | POST | Kirim hasil ekstraksi → return list tempat dari Photon/OpenStreetMap atau dataset fallback |
 | `/build-itinerary` | POST | Kirim list tempat terpilih → return urutan itinerary + estimasi waktu tempuh dari Gemini + Directions API |
 | `/itineraries` | GET/POST/PUT/DELETE | CRUD itinerary tersimpan (proxy ke Firestore atau langsung dari Flutter jika pakai Firestore SDK) |
 
@@ -197,7 +198,7 @@ history_interactions/{interactionId}
 ## 8. Urutan Pengerjaan (Suggested Roadmap)
 
 1. **Setup dasar**: Firebase project (Auth + Firestore), struktur navigasi dasar di Flutter
-2. **Backend proxy**: buat endpoint sederhana untuk Gemini API & Google Places API
+2. **Backend proxy**: buat endpoint sederhana untuk Gemini API & Photon/OpenStreetMap
 3. **Core flow tanpa itinerary**: chat input → parsing → tampil hasil rekomendasi tempat
 4. **Itinerary builder**: susun urutan + integrasi peta
 5. **Save & manage itinerary**: simpan ke Firestore, riwayat, edit/hapus
@@ -209,6 +210,6 @@ history_interactions/{interactionId}
 
 - Styling/UI **belum ditentukan** — fokus dulu ke fungsionalitas dan struktur data/logic yang benar. Jangan hardcode desain visual spesifik dulu.
 - Gunakan **structured output / function calling** dari Gemini API untuk parsing intent, jangan andalkan parsing manual dari free text response.
-- Pastikan semua API key (Gemini, Google Places, Google Directions) disimpan di backend, **tidak pernah** di-hardcode atau expose di kode Flutter.
+- Pastikan API key Gemini dan Google Directions disimpan di backend, **tidak pernah** di-hardcode atau expose di kode Flutter. Photon tidak memerlukan API key.
 - State management harus konsisten — pilih satu (disarankan Riverpod) dan pakai di seluruh project, jangan campur dengan `setState` manual untuk state global.
 - Untuk demo/testing, siapkan mekanisme caching/fallback data agar app tetap bisa didemokan meski koneksi ke API eksternal lambat atau rate-limited.

@@ -296,13 +296,13 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
             const SizedBox(height: 8),
 
             // Reorder hint
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  const Icon(Icons.swap_vert, size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  const Text(
+                  Icon(Icons.swap_vert, size: 16, color: AppColors.textSecondary),
+                  SizedBox(width: 4),
+                  Text(
                     'Tahan & geser untuk mengubah urutan kunjungan:',
                     style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),

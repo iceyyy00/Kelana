@@ -22,6 +22,9 @@ class PlaceCard extends StatelessWidget {
       symbol: 'Rp ',
       decimalDigits: 0,
     );
+    final estimatedRange = place.estimatedCostMin == place.estimatedCostMax
+        ? currencyFormatter.format(place.estimatedCostMax)
+        : '${currencyFormatter.format(place.estimatedCostMin)}–${currencyFormatter.format(place.estimatedCostMax)}';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -98,55 +101,79 @@ class PlaceCard extends StatelessWidget {
                       ],
                     ),
 
-                    // Category Pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        place.category,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                    // Category and budget tier
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              place.category,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Text(
+                          place.budgetTierLabel,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
 
                     // Rating and Price
                     Row(
                       children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          color: Colors.amber,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${place.rating} (${place.userRatingsTotal})',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                        if (place.userRatingsTotal > 0) ...[
+                          const Icon(
+                            Icons.star_rounded,
+                            color: Colors.amber,
+                            size: 18,
                           ),
-                        ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${place.rating} (${place.userRatingsTotal})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                         const Spacer(),
-                        Text(
-                          place.estimatedPrice == 0
-                              ? 'Gratis'
-                              : currencyFormatter.format(place.estimatedPrice),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: place.estimatedPrice == 0
-                                ? AppColors.success
-                                : AppColors.primary,
+                        Flexible(
+                          child: Text(
+                            place.estimatedCostMax == 0
+                                ? 'Gratis'
+                                : estimatedRange,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: place.estimatedCostMax == 0
+                                  ? AppColors.success
+                                  : AppColors.primary,
+                            ),
                           ),
                         ),
                       ],

@@ -119,11 +119,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         width: 38,
                         height: 38,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
+                              color: Colors.black.withValues(alpha: 0.06),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -144,12 +144,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92),
+                      color: Colors.white.withValues(alpha: 0.92),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withOpacity(0.6)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF134E4A).withOpacity(0.12),
+                          color: const Color(0xFF134E4A).withValues(alpha: 0.12),
                           blurRadius: 24,
                           offset: const Offset(0, 10),
                         ),
@@ -171,7 +171,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.06),
+                                      color: Colors.black.withValues(alpha: 0.06),
                                       blurRadius: 8,
                                       offset: const Offset(0, 3),
                                     ),
@@ -474,7 +474,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             ),
                             side: const BorderSide(color: Color(0xFFE2E8F0)),
                             elevation: 1,
-                            shadowColor: Colors.black.withOpacity(0.04),
+                            shadowColor: Colors.black.withValues(alpha: 0.04),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -516,11 +516,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 18, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.85),
+                      color: Colors.white.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
