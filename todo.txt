@@ -1,2 +1,0 @@
-replace google places api with OSM via photon
-resolve budget factor issue via gemini & OSM
