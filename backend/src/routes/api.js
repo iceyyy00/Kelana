@@ -1,10 +1,9 @@
 import express from 'express';
 import { randomBytes } from 'node:crypto';
-import axios from 'axios';
 import { parseUserIntent, optimizeItinerary } from '../services/geminiService.js';
 import { searchPlaces } from '../services/placesService.js';
 import { calculateRouteAndTravelTimes } from '../services/directionsService.js';
-import { config, isGeminiAvailable, isPlacesAvailable, isDirectionsAvailable } from '../config/env.js';
+import { config, isGeminiAvailable, isDirectionsAvailable } from '../config/env.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import {
   deleteItinerary,
@@ -27,7 +26,7 @@ router.get('/health', (req, res) => {
     mode: config.mockMode,
     apiStatus: {
       geminiConfigured: isGeminiAvailable(),
-      placesConfigured: isPlacesAvailable(),
+      placeSearchProvider: 'Photon',
       directionsConfigured: isDirectionsAvailable()
     },
     timestamp: new Date().toISOString()
@@ -73,9 +72,13 @@ router.post('/parse-intent', requireAuth, async (req, res) => {
 router.post('/search-places', requireAuth, async (req, res) => {
   try {
     const intent = req.body || {};
-    if (!intent.location) {
-      intent.location = 'Semarang';
+    if (typeof intent.location !== 'string' || intent.location.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Destination is required before searching for places.',
+      });
     }
+    intent.location = intent.location.trim();
 
     console.log(`[API /search-places] Searching places for ${intent.location}`);
     const places = await searchPlaces(intent);
@@ -113,6 +116,12 @@ router.post('/build-itinerary', requireAuth, async (req, res) => {
 
     // Step 1: Gemini determines optimal stop ordering and activities
     const geminiOptimization = await optimizeItinerary(places, intent || {});
+    if (intent?.budget > 0 && geminiOptimization.stops.length === 0) {
+      return res.status(422).json({
+        success: false,
+        error: 'Estimasi batas atas biaya tempat melebihi budget. Sesuaikan budget atau pilih tempat lain.',
+      });
+    }
 
     // Step 2: Re-order places according to Gemini's recommendation or preserve order
     let orderedPlaces = [];
@@ -126,6 +135,11 @@ router.post('/build-itinerary', requireAuth, async (req, res) => {
           suggestedArrivalTime: stop.suggestedArrivalTime,
           suggestedDurationMinutes: stop.suggestedDurationMinutes,
           activityTip: stop.activityTip,
+          budgetCategory: stop.budgetCategory,
+          budgetTier: stop.budgetTier,
+          estimatedCostMin: stop.estimatedCostMin,
+          estimatedCostMax: stop.estimatedCostMax,
+          estimatedPrice: stop.estimatedCost,
           visited: false
         };
       });
@@ -179,44 +193,6 @@ router.post('/build-itinerary', requireAuth, async (req, res) => {
       success: false,
       error: 'Gagal menyusun itinerary: ' + error.message
     });
-  }
-});
-
-router.get('/place-photos', async (req, res) => {
-  const reference = req.query.reference;
-  if (
-    typeof reference !== 'string' ||
-    reference.trim().length === 0 ||
-    reference.length > 2048 ||
-    /[\u0000-\u001f\u007f]/.test(reference)
-  ) {
-    return res.status(400).json({ success: false, error: 'Referensi foto tidak valid.' });
-  }
-  if (!config.googlePlacesApiKey) {
-    return res.status(503).json({ success: false, error: 'Google Places API belum dikonfigurasi.' });
-  }
-
-  try {
-    const response = await axios.get(
-      'https://maps.googleapis.com/maps/api/place/photo',
-      {
-        params: {
-          maxwidth: 800,
-          photoreference: reference,
-          key: config.googlePlacesApiKey,
-        },
-        responseType: 'arraybuffer',
-        maxContentLength: 5 * 1024 * 1024,
-        maxRedirects: 3,
-        timeout: 8000,
-      },
-    );
-    res.set('Content-Type', response.headers['content-type'] || 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=86400');
-    return res.status(200).send(Buffer.from(response.data));
-  } catch (error) {
-    console.error('[API /place-photos] Google Places photo request failed:', error.message);
-    return res.status(502).json({ success: false, error: 'Gagal memuat foto tempat.' });
   }
 });
 

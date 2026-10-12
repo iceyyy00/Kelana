@@ -226,6 +226,18 @@ class TripCreationNotifier extends StateNotifier<TripCreationState> {
     );
   }
 
+  void openItinerary(Itinerary itinerary) {
+    final usablePlaces =
+        itinerary.places.where((place) => place.hasUsableName).toList();
+    final itineraryWithUsablePlaces = itinerary.copyWith(places: usablePlaces);
+    state = state.copyWith(
+      builtItinerary: itineraryWithUsablePlaces,
+      recommendedPlaces: usablePlaces,
+      selectedPlaces: usablePlaces,
+      parsedIntent: itineraryWithUsablePlaces.parsedIntent,
+    );
+  }
+
   void reset() {
     state = TripCreationState();
   }

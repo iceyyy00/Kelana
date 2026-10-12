@@ -1,5 +1,5 @@
 name: kelana_app
-description: "Kelana - AI Itinerary Planner App (Flutter, Riverpod, Gemini & Google Places)"
+description: "Kelana - AI Itinerary Planner App (Flutter, Riverpod, Gemini & Photon/OSM)"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -36,6 +36,7 @@ dependencies:
   uuid: ^4.3.3
   cached_network_image: ^3.3.1
   flutter_staggered_animations: ^1.1.1
+  speech_to_text: ^7.5.0
 
 dev_dependencies:
   flutter_test:

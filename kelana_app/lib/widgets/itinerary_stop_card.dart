@@ -26,6 +26,9 @@ class ItineraryStopCard extends StatelessWidget {
       symbol: 'Rp ',
       decimalDigits: 0,
     );
+    final estimatedRange = place.estimatedCostMin == place.estimatedCostMax
+        ? currencyFormatter.format(place.estimatedCostMax)
+        : '${currencyFormatter.format(place.estimatedCostMin)}–${currencyFormatter.format(place.estimatedCostMax)}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -43,7 +46,8 @@ class ItineraryStopCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 14),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(12),
@@ -52,7 +56,8 @@ class ItineraryStopCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.directions_car_rounded, size: 14, color: Colors.blue),
+                      const Icon(Icons.directions_car_rounded,
+                          size: 14, color: Colors.blue),
                       const SizedBox(width: 6),
                       Text(
                         'Estimasi ${place.estimatedTravelTimeFromPrevious} menit perjalanan',
@@ -92,9 +97,8 @@ class ItineraryStopCard extends StatelessWidget {
                     // Stop Number Circle
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: place.visited
-                          ? AppColors.success
-                          : AppColors.primary,
+                      backgroundColor:
+                          place.visited ? AppColors.success : AppColors.primary,
                       child: Text(
                         '${index + 1}',
                         style: const TextStyle(
@@ -162,7 +166,8 @@ class ItineraryStopCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.schedule, size: 13, color: Colors.amber),
+                            const Icon(Icons.schedule,
+                                size: 13, color: Colors.amber),
                             const SizedBox(width: 4),
                             Text(
                               'Tiba: ${place.suggestedArrivalTime}',
@@ -187,7 +192,8 @@ class ItineraryStopCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.timer_outlined, size: 13, color: Colors.purple),
+                            const Icon(Icons.timer_outlined,
+                                size: 13, color: Colors.purple),
                             const SizedBox(width: 4),
                             Text(
                               '${place.suggestedDurationMinutes} menit',
@@ -208,9 +214,9 @@ class ItineraryStopCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        place.estimatedPrice == 0
+                        place.estimatedCostMax == 0
                             ? 'Gratis'
-                            : currencyFormatter.format(place.estimatedPrice),
+                            : 'Est. $estimatedRange',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -222,7 +228,8 @@ class ItineraryStopCard extends StatelessWidget {
                 ),
 
                 // AI Tip callout
-                if (place.activityTip != null && place.activityTip!.isNotEmpty) ...[
+                if (place.activityTip != null &&
+                    place.activityTip!.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(10),
@@ -269,7 +276,9 @@ class ItineraryStopCard extends StatelessWidget {
                             onChanged: onToggleVisited,
                           ),
                           Text(
-                            place.visited ? 'Sudah Dikunjungi' : 'Tandai Kunjungi',
+                            place.visited
+                                ? 'Sudah Dikunjungi'
+                                : 'Tandai Kunjungi',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,

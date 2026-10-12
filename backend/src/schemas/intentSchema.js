@@ -18,12 +18,20 @@ export const geminiIntentResponseSchema = {
       enum: ["budget", "moderate", "luxury", "unspecified"],
       description: "Tingkatan pengeluaran: budget (hemat), moderate (menengah), luxury (mewah)."
     },
+    foodBudgetPercent: {
+      type: "INTEGER",
+      description: "Persentase total budget yang dialokasikan untuk makan, default 50."
+    },
+    accommodationBudgetPercent: {
+      type: "INTEGER",
+      description: "Persentase total budget yang dialokasikan untuk akomodasi, default 20."
+    },
     categories: {
       type: "ARRAY",
       items: {
         type: "STRING"
       },
-      description: "Daftar kategori minat perjalanan (contoh: kuliner, wisata sejarah, alam, belanja, keluarga, hidden gem, religi)."
+      description: "Daftar kategori minat perjalanan (contoh: kuliner, wisata sejarah, alam, belanja, akomodasi, keluarga, hidden gem, religi)."
     },
     dateTime: {
       type: "STRING",

@@ -9,6 +9,7 @@ kelana_app/.dart_tool/
 kelana_app/build/
 kelana_app/.flutter-plugins
 kelana_app/.flutter-plugins-dependencies
+kelana_app/ios/Flutter/Secrets.xcconfig
 
 # IDE
 .vscode/

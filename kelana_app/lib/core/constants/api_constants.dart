@@ -4,8 +4,7 @@ import 'package:flutter/foundation.dart';
 class ApiConstants {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'KELANA_API_BASE_URL',
-    defaultValue:
-        'https://asia-southeast1-kelana-f39b1.cloudfunctions.net/backend',
+    defaultValue: '',
   );
 
   // Default URL depends on platform:

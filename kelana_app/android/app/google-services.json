@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "614759105573",
+    "project_id": "kelana-f39b1",
+    "storage_bucket": "kelana-f39b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:614759105573:android:14e472b63fc12784966bcc",
+        "android_client_info": {
+          "package_name": "com.example.kelana_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA28HZuw8HfdjsDdOAMmt7-BjiaSX32TFI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -29,7 +29,8 @@ class _SavedItinerariesScreenState
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Buka Itinerary Teman'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -62,13 +63,18 @@ class _SavedItinerariesScreenState
                   final client = ref.read(apiClientProvider);
                   final found = await client.getSharedItinerary(code);
                   if (found != null && mounted) {
-                    ref.read(savedItinerariesProvider.notifier).saveItinerary(found);
+                    ref
+                        .read(savedItinerariesProvider.notifier)
+                        .saveItinerary(found);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Itinerary berhasil dimuat!')),
+                      const SnackBar(
+                          content: Text('Itinerary berhasil dimuat!')),
                     );
                   } else if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Kode tidak ditemukan atau server offline.')),
+                      const SnackBar(
+                          content: Text(
+                              'Kode tidak ditemukan atau server offline.')),
                     );
                   }
                 }
@@ -151,7 +157,8 @@ class _SavedItinerariesScreenState
                 final itin = savedList[index];
                 final visitedCount = itin.visitedCount;
                 final totalCount = itin.places.length;
-                final progress = totalCount > 0 ? visitedCount / totalCount : 0.0;
+                final progress =
+                    totalCount > 0 ? visitedCount / totalCount : 0.0;
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 14),
@@ -277,10 +284,9 @@ class _SavedItinerariesScreenState
                                 const SizedBox(width: 4),
                                 ElevatedButton(
                                   onPressed: () {
-                                    // Load into tripCreation and view
                                     ref
                                         .read(tripCreationProvider.notifier)
-                                        .reset();
+                                        .openItinerary(itin);
                                     context.push('/itinerary');
                                   },
                                   style: ElevatedButton.styleFrom(
