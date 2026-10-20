@@ -91,6 +91,15 @@ class TripCreationNotifier extends StateNotifier<TripCreationState> {
     state = state.copyWith(parsedIntent: newIntent);
   }
 
+  void loadItinerary(Itinerary itinerary) {
+    state = state.copyWith(
+      parsedIntent: itinerary.parsedIntent,
+      recommendedPlaces: itinerary.places,
+      selectedPlaces: itinerary.places,
+      builtItinerary: itinerary,
+    );
+  }
+
   /// Step 2: Search places from Places API / Datasets based on confirmed intent
   Future<bool> fetchPlacesForIntent() async {
     final intent = state.parsedIntent;

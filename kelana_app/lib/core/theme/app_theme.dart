@@ -18,36 +18,38 @@ class AppTheme {
         onSurface: AppColors.textPrimary,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.htmlSurface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         iconTheme: IconThemeData(color: AppColors.textPrimary),
       ),
       cardTheme: CardThemeData(
-        color: AppColors.surface,
-        elevation: 1,
-        shadowColor: Colors.black.withValues(alpha: 0.05),
+        color: AppColors.htmlSurface,
+        elevation: 0,
+        shadowColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border, width: 1),
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: AppColors.htmlBorder, width: 1),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: AppColors.htmlSurface,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.htmlBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.htmlBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+              color: AppColors.htmlPrimaryContainer, width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -56,9 +58,8 @@ class AppTheme {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,

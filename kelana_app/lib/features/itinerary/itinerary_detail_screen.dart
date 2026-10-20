@@ -25,7 +25,8 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: const Row(
             children: [
               Icon(Icons.share_rounded, color: AppColors.primary),
@@ -43,11 +44,13 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
               ),
               const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -62,12 +65,14 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.copy, size: 20, color: AppColors.primary),
+                      icon: const Icon(Icons.copy,
+                          size: 20, color: AppColors.primary),
                       tooltip: 'Salin Kode',
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: shareCode));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Kode berhasil disalin!')),
+                          const SnackBar(
+                              content: Text('Kode berhasil disalin!')),
                         );
                       },
                     ),
@@ -171,10 +176,67 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Map Visualizer
-            MapViewWidget(
-              places: itinerary.places,
-              polylinePoints: itinerary.polylinePoints,
+            SizedBox(
+              height: 252,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (itinerary.places.isNotEmpty &&
+                      itinerary.places.first.photoUrl.isNotEmpty)
+                    Image.network(
+                      itinerary.places.first.photoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _itineraryHeroFallback(),
+                    )
+                  else
+                    _itineraryHeroFallback(),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x2200262E), Color(0xDD00262E)],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: 18,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20)),
+                          child: Text(itinerary.location,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(itinerary.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 23,
+                                height: 1.15,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 5),
+                        Text(
+                            '${itinerary.places.length} destinasi  ·  ${itinerary.parsedIntent?.dateTime ?? 'Rencana perjalanan'}',
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.white70)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             // Itinerary Title & Summary Header
@@ -184,19 +246,25 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    itinerary.title,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
                     itinerary.summary,
                     style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
+                        fontSize: 13,
+                        height: 1.45,
+                        color: AppColors.htmlTextSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 46,
+                    child: FilledButton.icon(
+                      onPressed: () => context.push('/chat'),
+                      icon: const Icon(Icons.edit_calendar_outlined, size: 18),
+                      label: const Text('Sesuaikan Rencana'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.htmlPrimaryContainer,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -218,12 +286,15 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
                             children: [
                               const Text(
                                 'Destinasi',
-                                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 '${itinerary.places.length} Tempat',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                             ],
                           ),
@@ -245,12 +316,15 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
                             children: [
                               const Text(
                                 'Waktu Perjalanan',
-                                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 '${itinerary.totalEstimatedTravelMinutes} Menit',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                             ],
                           ),
@@ -272,11 +346,14 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
                             children: [
                               const Text(
                                 'Total Biaya',
-                                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                currencyFormatter.format(itinerary.totalEstimatedCost),
+                                currencyFormatter
+                                    .format(itinerary.totalEstimatedCost),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
@@ -300,11 +377,13 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  Icon(Icons.swap_vert, size: 16, color: AppColors.textSecondary),
-                  SizedBox(width: 4),
-                  Text(
+                  const Icon(Icons.swap_vert,
+                      size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 4),
+                  const Text(
                     'Tahan & geser untuk mengubah urutan kunjungan:',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -318,7 +397,9 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: itinerary.places.length,
               onReorder: (oldIndex, newIndex) {
-                ref.read(tripCreationProvider.notifier).reorderStops(oldIndex, newIndex);
+                ref
+                    .read(tripCreationProvider.notifier)
+                    .reorderStops(oldIndex, newIndex);
               },
               itemBuilder: (context, index) {
                 final place = itinerary.places[index];
@@ -328,7 +409,9 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
                   index: index,
                   isFirst: index == 0,
                   onToggleVisited: (val) {
-                    ref.read(tripCreationProvider.notifier).toggleVisited(place.placeId);
+                    ref
+                        .read(tripCreationProvider.notifier)
+                        .toggleVisited(place.placeId);
                   },
                   onRemove: () {
                     ref
@@ -337,6 +420,14 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
                   },
                 );
               },
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: MapViewWidget(
+                places: itinerary.places,
+                polylinePoints: itinerary.polylinePoints,
+              ),
             ),
 
             const SizedBox(height: 24),
@@ -353,7 +444,8 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
                       onPressed: () => _showShareDialog(shareCode),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
@@ -375,4 +467,11 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
       ),
     );
   }
+
+  Widget _itineraryHeroFallback() => Container(
+        color: AppColors.htmlPrimaryContainer,
+        child: const Center(
+            child: Icon(Icons.landscape_outlined,
+                color: Colors.white70, size: 48)),
+      );
 }

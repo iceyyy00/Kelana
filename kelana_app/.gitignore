@@ -41,3 +41,5 @@ migrate_working_dir/
 
 # Coverage
 coverage/
+# Widget Preview related
+.widget_preview/

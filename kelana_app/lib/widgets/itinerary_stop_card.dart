@@ -42,29 +42,29 @@ class ItineraryStopCard extends StatelessWidget {
                 Container(
                   width: 2,
                   height: 24,
-                  color: AppColors.primary.withValues(alpha: 0.3),
+                  color: AppColors.htmlBorder,
                 ),
                 const SizedBox(width: 14),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: AppColors.htmlSurfaceContainer,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade200, width: 0.8),
+                    border: Border.all(color: AppColors.htmlBorder, width: 0.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.directions_car_rounded,
-                          size: 14, color: Colors.blue),
+                      const Icon(Icons.directions_walk_rounded,
+                          size: 14, color: AppColors.htmlPrimaryContainer),
                       const SizedBox(width: 6),
                       Text(
                         'Estimasi ${place.estimatedTravelTimeFromPrevious} menit perjalanan',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade800,
+                          color: AppColors.htmlTextSecondary,
                         ),
                       ),
                     ],
@@ -77,8 +77,10 @@ class ItineraryStopCard extends StatelessWidget {
         // Main Stop Card
         Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          elevation: 1.5,
-          color: place.visited ? Colors.grey.shade50 : Colors.white,
+          elevation: 0,
+          color: place.visited
+              ? AppColors.htmlSurfaceContainer
+              : AppColors.htmlSurface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
@@ -97,8 +99,9 @@ class ItineraryStopCard extends StatelessWidget {
                     // Stop Number Circle
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor:
-                          place.visited ? AppColors.success : AppColors.primary,
+                      backgroundColor: place.visited
+                          ? AppColors.success
+                          : AppColors.htmlPrimaryContainer,
                       child: Text(
                         '${index + 1}',
                         style: const TextStyle(
@@ -159,22 +162,22 @@ class ItineraryStopCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
+                          color: AppColors.htmlSurfaceContainer,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.amber.shade200),
+                          border: Border.all(color: AppColors.htmlBorder),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.schedule,
-                                size: 13, color: Colors.amber),
+                                size: 13, color: AppColors.htmlSecondary),
                             const SizedBox(width: 4),
                             Text(
                               'Tiba: ${place.suggestedArrivalTime}',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.amber.shade900,
+                                color: AppColors.htmlPrimaryContainer,
                               ),
                             ),
                           ],
@@ -185,22 +188,22 @@ class ItineraryStopCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.purple.shade50,
+                          color: AppColors.htmlSurfaceContainerHigh,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.purple.shade200),
+                          border: Border.all(color: AppColors.htmlBorder),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.timer_outlined,
-                                size: 13, color: Colors.purple),
+                                size: 13, color: AppColors.htmlTextSecondary),
                             const SizedBox(width: 4),
                             Text(
                               '${place.suggestedDurationMinutes} menit',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.purple.shade900,
+                                color: AppColors.htmlTextSecondary,
                               ),
                             ),
                           ],
@@ -210,7 +213,7 @@ class ItineraryStopCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.teal.shade50,
+                        color: AppColors.htmlSurfaceContainerHigh,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -220,7 +223,7 @@ class ItineraryStopCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: Colors.teal.shade800,
+                          color: AppColors.htmlPrimaryContainer,
                         ),
                       ),
                     ),
@@ -234,14 +237,14 @@ class ItineraryStopCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.blueGrey.shade50,
+                      color: AppColors.htmlSurfaceContainerLow,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(Icons.lightbulb_outline,
-                            size: 16, color: Colors.teal),
+                            size: 16, color: AppColors.htmlPrimaryContainer),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -249,7 +252,7 @@ class ItineraryStopCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
-                              color: Colors.blueGrey.shade800,
+                              color: AppColors.htmlTextSecondary,
                             ),
                           ),
                         ),

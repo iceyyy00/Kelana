@@ -3,10 +3,11 @@ import '../../features/splash/splash_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/home/home_screen.dart';
-import '../../features/chat/chat_parser_screen.dart';
+import '../../features/chat/plan_screen.dart';
 import '../../features/places/recommendations_screen.dart';
 import '../../features/itinerary/itinerary_detail_screen.dart';
 import '../../features/saved/saved_itineraries_screen.dart';
+import '../../features/saved/trips_screen.dart';
 import '../../features/profile/profile_screen.dart';
 
 final appRouter = GoRouter(
@@ -30,7 +31,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/chat',
-      builder: (context, state) => const ChatParserScreen(),
+      builder: (context, state) => const PlanScreen(),
     ),
     GoRoute(
       path: '/recommendations',
@@ -43,6 +44,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/saved',
       builder: (context, state) => const SavedItinerariesScreen(),
+    ),
+    GoRoute(
+      path: '/trips',
+      builder: (context, state) => const TripsScreen(),
     ),
     GoRoute(
       path: '/profile',

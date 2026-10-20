@@ -1,11 +1,11 @@
 {
-    "name": "kelana_app",
-    "short_name": "kelana_app",
+    "name": "Kelana",
+    "short_name": "Kelana",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFF8F0",
+    "theme_color": "#0F3D47",
+    "description": "Kelana - AI itinerary planner.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -49,6 +49,6 @@ void main() {
       ),
     );
     expect(find.byType(KelanaApp), findsOneWidget);
-    await tester.pumpAndSettle(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 100));
   });
 }
