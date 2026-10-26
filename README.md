@@ -118,6 +118,12 @@ Flutter web defaults to `http://localhost:5000`; Android emulators use `http://1
 cd kelana_app
 flutter run --dart-define=KELANA_API_BASE_URL=https://asia-southeast1-kelana-f39b1.cloudfunctions.net/backend
 ```
+For a physical device on the same Wi-Fi, run the backend on the laptop and use the laptop's LAN IP instead of `localhost` (for example, `http://192.168.1.10:5000/`). Start Flutter with:
+```bash
+cd kelana_app
+flutter run --dart-define=KELANA_API_BASE_URL=http://192.168.1.10:5000/
+```
+Replace `192.168.1.10` with the laptop's actual LAN IP and allow inbound connections to port `5000` in its firewall.
 Verify the backend with `npm --prefix backend test` while it is running.
 
 Firebase client configuration (project identifiers and Firebase client API key) is not a substitute for security rules. Restrict Google Maps keys by platform and API, keep Gemini/Places/Directions keys in backend secrets, and never put server keys in Flutter code.

@@ -65,8 +65,8 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
     }
     _peopleCount = intent.peopleCount;
     _foodBudgetPercent = intent.foodBudgetPercent.clamp(0, 100);
-    _accommodationBudgetPercent = intent.accommodationBudgetPercent
-      .clamp(0, 100 - _foodBudgetPercent);
+    _accommodationBudgetPercent =
+        intent.accommodationBudgetPercent.clamp(0, 100 - _foodBudgetPercent);
     _selectedCategories = [...intent.categories];
   }
 
@@ -116,6 +116,9 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
     ).format((budget * percent / 100).round());
   }
 
+  bool _hasDestination(ParsedIntent? intent) =>
+      intent != null && intent.location.trim().isNotEmpty;
+
   void _confirmAndProceed() async {
     final tripNotifier = ref.read(tripCreationProvider.notifier);
     final currentIntent = ref.read(tripCreationProvider).parsedIntent;
@@ -123,7 +126,8 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
     if (currentIntent == null) return;
     if (_locationController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Masukkan kota atau destinasi terlebih dahulu.')),
+        const SnackBar(
+            content: Text('Masukkan kota atau destinasi terlebih dahulu.')),
       );
       return;
     }
@@ -252,12 +256,13 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                     ),
 
                   // 4. Gemini Structured Output Confirmation Card
-                  if (intent != null && !tripState.isLoading) ...[
-                    // AI message intro bubble
+                  if (intent?.chatResponse != null &&
+                      !_hasDestination(intent) &&
+                      !tripState.isLoading)
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Container(
-                        margin: const EdgeInsets.only(right: 40, bottom: 12),
+                        margin: const EdgeInsets.only(right: 40, bottom: 16),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
@@ -269,14 +274,14 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                           ),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: const Text(
-                          'Berikut rencana yang saya tangkap dari pesan Anda. Silakan periksa atau sesuaikan sebelum mencari rekomendasi tempat:',
-                          style: TextStyle(
+                        child: Text(
+                          intent!.chatResponse!,
+                          style: const TextStyle(
                               color: AppColors.textPrimary, fontSize: 14),
                         ),
                       ),
-                    ),
-
+                    )
+                  else if (_hasDestination(intent) && !tripState.isLoading) ...[
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -520,7 +525,7 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                   child: TextField(
                     controller: _chatInputController,
                     decoration: const InputDecoration(
-                      hintText: 'Ketik revisi (misal: ganti ke Jogja 150rb)...',
+                      hintText: 'Ngobrol atau ceritakan tujuan perjalanan...',
                       isDense: true,
                       contentPadding:
                           EdgeInsets.symmetric(horizontal: 14, vertical: 12),

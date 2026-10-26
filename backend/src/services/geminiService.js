@@ -3,6 +3,8 @@ import { config, isGeminiAvailable } from '../config/env.js';
 import { estimateOsmBudget, getTripBudgetContext } from './budgetService.js';
 import { geminiIntentResponseSchema, geminiItineraryResponseSchema } from '../schemas/intentSchema.js';
 
+const GEMINI_MODEL_FALLBACKS = ['gemini-3.1-flash-lite', 'gemini-3.6-flash'];
+
 function titleCase(value) {
   return value.replace(/\b\p{L}/gu, letter => letter.toUpperCase());
 }
@@ -26,6 +28,54 @@ async function generateWithTransientRetry(model, content) {
 
     await new Promise(resolve => setTimeout(resolve, 700));
     return model.generateContent(content);
+  }
+}
+
+async function generateWithTimeout(model, content, timeoutMs = 30000) {
+  let timeoutId;
+  try {
+    return await Promise.race([
+      generateWithTransientRetry(model, content),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error(`Gemini request timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function generateWithAvailableModel(content, generationConfig, timeoutMs = 12000) {
+  let lastError;
+  for (const modelName of GEMINI_MODEL_FALLBACKS) {
+    const model = new GoogleGenerativeAI(config.geminiApiKey).getGenerativeModel({
+      model: modelName,
+      generationConfig,
+    });
+    try {
+      return await generateWithTimeout(model, content, timeoutMs);
+    } catch (error) {
+      lastError = error;
+      console.warn(`[GeminiService] ${modelName} failed; trying next model: ${error.message}`);
+    }
+  }
+  throw lastError;
+}
+
+export function parseGeminiIntentResponse(rawText) {
+  try {
+    const cleanText = rawText.replace(/```json|```/gi, '').trim();
+    return JSON.parse(cleanText);
+  } catch (parseError) {
+    console.log('[GeminiService] Gemini returned plain text; using chat fallback.', parseError.message);
+    return {
+      chat_response: rawText,
+      destination: null,
+      budget: 0,
+    };
   }
 }
 
@@ -162,25 +212,90 @@ export function heuristicParseIntent(rawQuery) {
   };
 }
 
+async function generateConversationalResponse(rawQuery, intentData, userPreferences) {
+  if (config.mockMode === 'always' || !isGeminiAvailable()) {
+    throw new Error('Gemini is required for chat responses but is unavailable.');
+  }
+
+  try {
+    const generationConfig = {
+        responseMimeType: 'application/json',
+        thinkingConfig: { thinkingLevel: 'low' },
+      };
+    const conversationContext = {
+      location: userPreferences.location || intentData.location || '',
+      budget: userPreferences.budget || intentData.budget || 0,
+      dateTime: userPreferences.dateTime || intentData.dateTime || 'Belum ditentukan',
+      peopleCount: userPreferences.peopleCount || intentData.peopleCount || 1,
+      categories: userPreferences.categories || intentData.categories || [],
+    };
+    const prompt = `Balas pesan terbaru pengguna sebagai Kelana, asisten perjalanan yang ramah. Gunakan Bahasa Indonesia yang alami dan bervariasi, bukan template. Pahami pesan berdasarkan konteks. Jangan mengarang detail perjalanan dan jangan membuat itinerary. Jika destinasi belum diketahui, tanyakan destinasi dengan santai. Jika destinasi sudah diketahui, jangan tanyakan detail tambahan; tanggapi singkat dan arahkan pengguna untuk melanjutkan ke pilihan rekomendasi perjalanan. Kembalikan JSON valid dengan satu properti string: {"chat_response":"..."}.\nKonteks: ${JSON.stringify(conversationContext)}\nPesan terbaru: ${JSON.stringify(rawQuery)}`;
+    const result = await generateWithAvailableModel(prompt, generationConfig);
+    const parsed = parseGeminiIntentResponse(result.response.text().trim());
+    const chatResponse = String(parsed.chat_response || '').trim();
+    if (!chatResponse) {
+      throw new Error('Gemini returned no chat_response for the conversation.');
+    }
+    return { ...intentData, chat_response: chatResponse };
+  } catch (error) {
+    console.error('[GeminiService] Error generating conversational response:', error.message);
+    throw error;
+  }
+}
+
 /**
  * Parse user prompt into structured travel intent using Gemini API
  */
 export async function parseUserIntent(rawQuery, userPreferences = {}) {
+  const extractedIntent = heuristicParseIntent(rawQuery);
+  const previousLocation = String(userPreferences.location || '').trim();
+  const location = extractedIntent.location || previousLocation;
+  const hasExplicitBudget = /(?:\brp\b|\bbudget\b|\bbiaya\b)?\s*\d[\d.,]*\s*(?:rb|ribu|k|jt|juta)\b|\b(?:rp|budget|biaya)\s*\d{4,9}\b/i
+    .test(rawQuery);
+  const hasExplicitDate = extractedIntent.dateTime !== 'Belum ditentukan';
+  const previousBudget = Number(userPreferences.budget) || 0;
+  const previousDateTime = String(userPreferences.dateTime || '').trim();
+  const fallbackIntent = {
+    ...extractedIntent,
+    location,
+    budget: hasExplicitBudget
+      ? extractedIntent.budget
+      : previousBudget || 0,
+    budgetLevel: hasExplicitBudget
+      ? extractedIntent.budgetLevel
+      : previousBudget
+        ? userPreferences.budgetLevel || extractedIntent.budgetLevel
+        : 'unspecified',
+    dateTime: hasExplicitDate
+      ? extractedIntent.dateTime
+      : previousDateTime || 'Belum ditentukan',
+    categories: extractedIntent.categories,
+  };
+
+  if (!location) {
+    return generateConversationalResponse(rawQuery, fallbackIntent, userPreferences);
+  }
+
+  const missingBudget = fallbackIntent.budget <= 0;
+  const missingDate = fallbackIntent.dateTime === 'Belum ditentukan';
+  if (missingBudget || missingDate) {
+    return generateConversationalResponse(rawQuery, fallbackIntent, userPreferences);
+  }
+
+  if (!extractedIntent.location) {
+    return fallbackIntent;
+  }
+
   // If in pure mock mode or Gemini key is missing, use intelligent heuristic parser
   if (config.mockMode === 'always' || !isGeminiAvailable()) {
-    console.log('[GeminiService] Using heuristic fallback for intent parsing');
-    return heuristicParseIntent(rawQuery);
+    throw new Error('Gemini is required for chat responses but is unavailable.');
   }
 
   try {
-    const fallbackIntent = heuristicParseIntent(rawQuery);
-    const model = new GoogleGenerativeAI(config.geminiApiKey).getGenerativeModel({
-      model: "gemini-3.8-flash",
-      generationConfig: {
+    const generationConfig = {
         responseMimeType: "application/json",
-        temperature: 0.2,
-      }
-    });
+        thinkingConfig: { thinkingLevel: 'low' },
+      };
 
     const systemPrompt = `
 Anda adalah asisten perencana perjalanan (itinerary planner) cerdas bernama Kelana.
@@ -196,6 +311,7 @@ Aturan Ekstraksi:
 - "dateTime": Tanggal/waktu/durasi yang benar-benar disebut user. Jangan mengasumsikan "Hari ini"; gunakan "Belum ditentukan" bila tidak disebut.
 - "peopleCount": Jumlah orang (integer, default 1).
 - "userNotes": Ringkasan ramah dalam Bahasa Indonesia mengenai apa yang diinginkan user.
+- "chat_response": Balasan percakapan yang alami dan bervariasi dalam Bahasa Indonesia. Tanggapi pesan terbaru, jangan gunakan kalimat template, dan jangan mengarang detail yang belum disebutkan.
 
 Format output HARUS selalu JSON valid yang cocok dengan skema berikut:
 {
@@ -207,7 +323,8 @@ Format output HARUS selalu JSON valid yang cocok dengan skema berikut:
   "categories": string[],
   "dateTime": string,
   "peopleCount": number,
-  "userNotes": string
+  "userNotes": string,
+  "chat_response": string
 }
 `;
 
@@ -216,9 +333,20 @@ Input User: "${rawQuery}"
 ${userPreferences && Object.keys(userPreferences).length > 0 ? `Preferensi Historis User: ${JSON.stringify(userPreferences)}` : ''}
     `;
 
-    const result = await generateWithTransientRetry(model, [systemPrompt, userMessage]);
-    const responseText = result.response.text();
-    const parsed = JSON.parse(responseText);
+    const result = await generateWithAvailableModel(
+      [systemPrompt, userMessage],
+      generationConfig,
+    );
+    const responseText = result.response.text().trim();
+    const parsed = parseGeminiIntentResponse(responseText);
+    if (parsed.destination === null && parsed.chat_response !== undefined) {
+      return parsed;
+    }
+
+    const chatResponse = String(parsed.chat_response || '').trim();
+    if (!chatResponse) {
+      throw new Error('Gemini returned no chat_response for the conversation.');
+    }
 
     return {
       location: fallbackIntent.location || (() => {
@@ -239,12 +367,12 @@ ${userPreferences && Object.keys(userPreferences).length > 0 ? `Preferensi Histo
           ? 'Belum ditentukan'
           : String(parsed.dateTime || 'Belum ditentukan'),
       peopleCount: Number(parsed.peopleCount) || 1,
-      userNotes: parsed.userNotes || "Rencana perjalanan terstruktur oleh Kelana."
+      userNotes: parsed.userNotes || "Rencana perjalanan terstruktur oleh Kelana.",
+      chat_response: chatResponse,
     };
   } catch (error) {
     console.error('[GeminiService] Error calling Gemini API:', error.message);
-    // Fallback to heuristic parser on any API failure (e.g. rate limit, network timeout)
-    return heuristicParseIntent(rawQuery);
+    throw error;
   }
 }
 
@@ -358,13 +486,10 @@ export async function optimizeItinerary(places, intent = {}) {
   }
 
   try {
-    const model = new GoogleGenerativeAI(config.geminiApiKey).getGenerativeModel({
-      model: "gemini-3.8-flash",
-      generationConfig: {
+    const generationConfig = {
         responseMimeType: "application/json",
-        temperature: 0.3,
-      }
-    });
+        thinkingConfig: { thinkingLevel: 'low' },
+      };
 
     const prompt = `
 Anda adalah pemandu wisata ahli di Indonesia untuk aplikasi Kelana.
@@ -432,7 +557,7 @@ Format output HARUS JSON valid:
 }
 `;
 
-    const result = await generateWithTransientRetry(model, prompt);
+    const result = await generateWithAvailableModel(prompt, generationConfig);
     const text = result.response.text();
     const parsed = JSON.parse(text);
 

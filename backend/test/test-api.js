@@ -2,7 +2,11 @@ import http from 'http';
 import { requireAuth } from '../src/middleware/requireAuth.js';
 import { estimateOsmBudget, getTripBudgetContext } from '../src/services/budgetService.js';
 import { isUsablePhotonName } from '../src/services/placesService.js';
-import { heuristicParseIntent } from '../src/services/geminiService.js';
+import {
+  heuristicParseIntent,
+  parseUserIntent,
+  parseGeminiIntentResponse,
+} from '../src/services/geminiService.js';
 
 const BASE_URL = 'http://localhost:5000/api';
 
@@ -45,6 +49,48 @@ async function runTests() {
   console.log('🚀 Starting Kelana API Verification Tests...\n');
 
   try {
+    const plainTextResponse = 'Hai, mau pergi ke mana?';
+    const chatFallback = parseGeminiIntentResponse(plainTextResponse);
+    if (
+      chatFallback.chat_response !== plainTextResponse ||
+      chatFallback.destination !== null ||
+      chatFallback.budget !== 0
+    ) {
+      throw new Error('Plain-text Gemini response fallback failed');
+    }
+
+    const fencedResponse = parseGeminiIntentResponse('```json\n{"location":"Bali"}\n```');
+    if (fencedResponse.location !== 'Bali') {
+      throw new Error('Fenced Gemini JSON parsing failed');
+    }
+
+    const originalMockMode = process.env.MOCK_MODE;
+    const originalGeminiApiKey = process.env.GEMINI_API_KEY;
+    process.env.MOCK_MODE = 'always';
+    process.env.GEMINI_API_KEY = '';
+    try {
+      let rejectedWithoutGemini = false;
+      try {
+        await parseUserIntent('halo');
+      } catch (error) {
+        rejectedWithoutGemini = error.message.includes('Gemini is required');
+      }
+      if (!rejectedWithoutGemini) {
+        throw new Error('Chat response did not require the Gemini API');
+      }
+    } finally {
+      if (originalMockMode === undefined) {
+        delete process.env.MOCK_MODE;
+      } else {
+        process.env.MOCK_MODE = originalMockMode;
+      }
+      if (originalGeminiApiKey === undefined) {
+        delete process.env.GEMINI_API_KEY;
+      } else {
+        process.env.GEMINI_API_KEY = originalGeminiApiKey;
+      }
+    }
+
     const fallbackIntent = heuristicParseIntent(
       'Mau ke Taipei tanggal 20 Oktober 2026 selama 5 hari, budget Rp 20 juta, suka pantai dan kuliner',
     );

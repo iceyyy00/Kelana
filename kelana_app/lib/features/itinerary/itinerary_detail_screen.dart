@@ -377,10 +377,10 @@ class _ItineraryDetailScreenState extends ConsumerState<ItineraryDetailScreen> {
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  const Icon(Icons.swap_vert,
+                  Icon(Icons.swap_vert,
                       size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  const Text(
+                  SizedBox(width: 4),
+                  Text(
                     'Tahan & geser untuk mengubah urutan kunjungan:',
                     style:
                         TextStyle(fontSize: 12, color: AppColors.textSecondary),

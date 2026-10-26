@@ -61,7 +61,7 @@ class ItineraryStopCard extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         'Estimasi ${place.estimatedTravelTimeFromPrevious} menit perjalanan',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: AppColors.htmlTextSecondary,
@@ -174,7 +174,7 @@ class ItineraryStopCard extends StatelessWidget {
                             const SizedBox(width: 4),
                             Text(
                               'Tiba: ${place.suggestedArrivalTime}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.htmlPrimaryContainer,
@@ -200,7 +200,7 @@ class ItineraryStopCard extends StatelessWidget {
                             const SizedBox(width: 4),
                             Text(
                               '${place.suggestedDurationMinutes} menit',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.htmlTextSecondary,
@@ -220,7 +220,7 @@ class ItineraryStopCard extends StatelessWidget {
                         place.estimatedCostMax == 0
                             ? 'Gratis'
                             : 'Est. $estimatedRange',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: AppColors.htmlPrimaryContainer,
@@ -249,7 +249,7 @@ class ItineraryStopCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             place.activityTip!,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
                               color: AppColors.htmlTextSecondary,

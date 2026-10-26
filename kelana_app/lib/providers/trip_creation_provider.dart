@@ -38,13 +38,15 @@ class TripCreationState {
     List<Place>? recommendedPlaces,
     List<Place>? selectedPlaces,
     Itinerary? builtItinerary,
+    bool clearParsedIntent = false,
   }) {
     return TripCreationState(
       isLoading: isLoading ?? this.isLoading,
       loadingMessage: loadingMessage,
       errorMessage: errorMessage,
       rawQuery: rawQuery ?? this.rawQuery,
-      parsedIntent: parsedIntent ?? this.parsedIntent,
+      parsedIntent:
+          clearParsedIntent ? null : parsedIntent ?? this.parsedIntent,
       recommendedPlaces: recommendedPlaces ?? this.recommendedPlaces,
       selectedPlaces: selectedPlaces ?? this.selectedPlaces,
       builtItinerary: builtItinerary ?? this.builtItinerary,
@@ -61,15 +63,20 @@ class TripCreationNotifier extends StateNotifier<TripCreationState> {
   Future<bool> submitPrompt(String query) async {
     if (query.trim().isEmpty) return false;
 
+    final previousIntent = state.parsedIntent;
     state = state.copyWith(
       isLoading: true,
-      loadingMessage: 'Gemini sedang memahami rencana perjalanan Anda...',
+      loadingMessage: 'Kelana sedang memahami pesan Anda...',
       errorMessage: null,
       rawQuery: query,
+      clearParsedIntent: true,
     );
 
     try {
-      final intent = await _apiClient.parseIntent(query);
+      final intent = await _apiClient.parseIntent(
+        query,
+        preferences: previousIntent?.toJson(),
+      );
       state = state.copyWith(
         isLoading: false,
         loadingMessage: null,
@@ -103,7 +110,9 @@ class TripCreationNotifier extends StateNotifier<TripCreationState> {
   /// Step 2: Search places from Places API / Datasets based on confirmed intent
   Future<bool> fetchPlacesForIntent() async {
     final intent = state.parsedIntent;
-    if (intent == null) return false;
+    if (intent == null || intent.location.trim().isEmpty) {
+      return false;
+    }
 
     state = state.copyWith(
       isLoading: true,

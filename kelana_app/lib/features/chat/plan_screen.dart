@@ -81,8 +81,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
     location.dispose();
     budget.dispose();
     dateTime.dispose();
-    if (updated != null)
+    if (updated != null) {
       ref.read(tripCreationProvider.notifier).updateParsedIntent(updated);
+    }
   }
 
   Future<void> _showRecommendations() async {
@@ -90,6 +91,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         await ref.read(tripCreationProvider.notifier).fetchPlacesForIntent();
     if (success && mounted) context.push('/recommendations');
   }
+
+  bool _hasDestination(ParsedIntent? intent) =>
+      intent != null && intent.location.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -225,16 +229,54 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  if (intent != null && !state.isLoading) ...[
-                    Row(
+                  if (intent?.chatResponse != null &&
+                      !_hasDestination(intent) &&
+                      !state.isLoading) ...[
+                    _softMessage(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Kelana',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.htmlPrimaryContainer,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            intent!.chatResponse!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.5,
+                              color: AppColors.htmlPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (intent != null && !state.isLoading) ...[
+                    _softMessage(
+                      child: const Text(
+                        'Sip! Ini detail perjalanan dan minat wisata yang aku tangkap. Sudah sesuai? Kamu bisa mengubahnya di bawah ini sebelum lanjut.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          color: AppColors.htmlPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Row(
                       children: [
-                        const Text('Parameter Terdeteksi',
+                        Text('Parameter Terdeteksi',
                             style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.htmlPrimaryContainer)),
-                        const Spacer(),
-                        const Text('Otomatis terisi',
+                        Spacer(),
+                        Text('Otomatis terisi',
                             style: TextStyle(
                                 fontSize: 10,
                                 color: AppColors.htmlTextTertiary)),
@@ -268,29 +310,6 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
-                            children: [
-                              Text('Kelana',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.htmlPrimaryContainer)),
-                              SizedBox(width: 8),
-                              Text('baru saja',
-                                  style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.htmlTextTertiary)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Siap. Saya akan mencari rute ${intent.categories.join(', ').toLowerCase()} di ${intent.location} dengan budget sekitar Rp ${_formatBudget(intent.budget)} untuk ${intent.dateTime.toLowerCase()}.',
-                            style: const TextStyle(
-                                fontSize: 13,
-                                height: 1.5,
-                                color: AppColors.htmlPrimary),
-                          ),
-                          const SizedBox(height: 14),
                           SizedBox(
                             width: double.infinity,
                             child: FilledButton.icon(
@@ -374,7 +393,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                       controller: _messageController,
                       onSubmitted: (_) => _sendMessage(),
                       decoration: const InputDecoration(
-                        hintText: 'Ketik permintaan atau sesuaikan rute...',
+                        hintText: 'Ngobrol atau ceritakan tujuan perjalanan...',
                         isDense: true,
                         filled: true,
                         fillColor: Color(0xFFFDF3DE),

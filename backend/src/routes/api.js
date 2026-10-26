@@ -51,6 +51,18 @@ router.post('/parse-intent', requireAuth, async (req, res) => {
     console.log(`[API /parse-intent] Processing: "${query}"`);
     const parsedIntent = await parseUserIntent(query.trim(), preferences || {});
 
+    const destination = parsedIntent.location ?? parsedIntent.destination;
+    if (
+      typeof destination !== 'string' ||
+      destination.trim().length === 0 ||
+      destination.toLowerCase().includes('belum ditentukan')
+    ) {
+      return res.status(200).json({
+        success: true,
+        data: parsedIntent
+      });
+    }
+
     return res.json({
       success: true,
       data: parsedIntent

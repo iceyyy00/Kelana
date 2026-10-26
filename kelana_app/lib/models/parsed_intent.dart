@@ -8,6 +8,7 @@ class ParsedIntent {
   final String dateTime;
   final int peopleCount;
   final String userNotes;
+  final String? chatResponse;
 
   ParsedIntent({
     required this.location,
@@ -19,6 +20,7 @@ class ParsedIntent {
     required this.dateTime,
     required this.peopleCount,
     required this.userNotes,
+    this.chatResponse,
   });
 
   factory ParsedIntent.fromJson(Map<String, dynamic> json) {
@@ -26,8 +28,8 @@ class ParsedIntent {
       location: json['location'] as String? ?? '',
       budget: (json['budget'] as num?)?.toInt() ?? 100000,
       budgetLevel: json['budgetLevel'] as String? ?? 'budget',
-        foodBudgetPercent: (json['foodBudgetPercent'] as num?)?.toInt() ?? 50,
-        accommodationBudgetPercent:
+      foodBudgetPercent: (json['foodBudgetPercent'] as num?)?.toInt() ?? 50,
+      accommodationBudgetPercent:
           (json['accommodationBudgetPercent'] as num?)?.toInt() ?? 20,
       categories: (json['categories'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -36,6 +38,7 @@ class ParsedIntent {
       dateTime: json['dateTime'] as String? ?? 'Belum ditentukan',
       peopleCount: (json['peopleCount'] as num?)?.toInt() ?? 1,
       userNotes: json['userNotes'] as String? ?? '',
+      chatResponse: json['chat_response'] as String?,
     );
   }
 
@@ -50,6 +53,7 @@ class ParsedIntent {
       'dateTime': dateTime,
       'peopleCount': peopleCount,
       'userNotes': userNotes,
+      if (chatResponse != null) 'chat_response': chatResponse,
     };
   }
 
@@ -63,18 +67,20 @@ class ParsedIntent {
     String? dateTime,
     int? peopleCount,
     String? userNotes,
+    String? chatResponse,
   }) {
     return ParsedIntent(
       location: location ?? this.location,
       budget: budget ?? this.budget,
       budgetLevel: budgetLevel ?? this.budgetLevel,
-        foodBudgetPercent: foodBudgetPercent ?? this.foodBudgetPercent,
-        accommodationBudgetPercent:
+      foodBudgetPercent: foodBudgetPercent ?? this.foodBudgetPercent,
+      accommodationBudgetPercent:
           accommodationBudgetPercent ?? this.accommodationBudgetPercent,
       categories: categories ?? this.categories,
       dateTime: dateTime ?? this.dateTime,
       peopleCount: peopleCount ?? this.peopleCount,
       userNotes: userNotes ?? this.userNotes,
+      chatResponse: chatResponse ?? this.chatResponse,
     );
   }
 }
