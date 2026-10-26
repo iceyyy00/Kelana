@@ -2,9 +2,14 @@ import http from 'http';
 import { requireAuth } from '../src/middleware/requireAuth.js';
 import { estimateOsmBudget, getTripBudgetContext } from '../src/services/budgetService.js';
 import { isUsablePhotonName } from '../src/services/placesService.js';
-import { heuristicParseIntent } from '../src/services/geminiService.js';
+import {
+  heuristicParseIntent,
+  mergeConversationIntent,
+} from '../src/services/geminiService.js';
+import { geminiIntentResponseSchema } from '../src/schemas/intentSchema.js';
+import { buildManualItinerary } from '../src/services/manualItineraryService.js';
 
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = `${process.env.TEST_BASE_URL || 'http://localhost:5000'}/api`;
 
 function request(method, path, body = null) {
   return new Promise((resolve, reject) => {
@@ -24,6 +29,15 @@ function request(method, path, body = null) {
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
         try {
+          if (
+            geminiIntentResponseSchema.required.length !== 1 ||
+            geminiIntentResponseSchema.required[0] !== 'chat_response' ||
+            !geminiIntentResponseSchema.properties.location ||
+            !geminiIntentResponseSchema.properties.budget
+          ) {
+            throw new Error('Gemini conversational intent schema is invalid');
+          }
+
           const parsed = JSON.parse(data);
           resolve({ status: res.statusCode, body: parsed });
         } catch (e) {
@@ -49,15 +63,176 @@ async function runTests() {
       'Mau ke Taipei tanggal 20 Oktober 2026 selama 5 hari, budget Rp 20 juta, suka pantai dan kuliner',
     );
     const incompleteIntent = heuristicParseIntent('Mau liburan dengan budget 500 ribu');
+    const greetingIntent = heuristicParseIntent('Halo');
+    const unspecifiedIntent = heuristicParseIntent('Mau liburan ke Bandung');
+    const vagueDestinationIntent = heuristicParseIntent('Mau liburan ke luar negeri');
+    const priorChat = [
+      { role: 'user', parts: [{ text: 'halo' }] },
+      { role: 'model', parts: [{ text: 'Hai! Mau ke kota mana?' }] },
+      { role: 'user', parts: [{ text: 'budget 100 juta' }] },
+      { role: 'model', parts: [{ text: 'Budget tercatat. Mau ke kota mana?' }] },
+    ];
+    const budgetFromHistory = mergeConversationIntent('Jakarta', priorChat);
     if (
       fallbackIntent.location !== 'Taipei' ||
       !fallbackIntent.dateTime.includes('20 Oktober 2026') ||
       !fallbackIntent.dateTime.includes('5 hari') ||
       fallbackIntent.budget !== 20000000 ||
       incompleteIntent.location !== '' ||
+      incompleteIntent.budget !== 500000 ||
+      incompleteIntent.categories.length !== 0 ||
+      greetingIntent.location !== '' ||
+      greetingIntent.budget !== 0 ||
+      greetingIntent.categories.length !== 0 ||
+      !greetingIntent.userNotes.includes('kota atau destinasi') ||
+      unspecifiedIntent.location !== 'Bandung' ||
+      unspecifiedIntent.budget !== 0 ||
+      unspecifiedIntent.budgetLevel !== 'unspecified' ||
+      unspecifiedIntent.categories.length !== 0 ||
+      vagueDestinationIntent.location !== '' ||
+      vagueDestinationIntent.budget !== 0 ||
+      budgetFromHistory.location !== 'Jakarta' ||
+      budgetFromHistory.budget !== 100000000 ||
+      !budgetFromHistory.chat_response.includes('100.000.000') ||
       incompleteIntent.dateTime !== 'Belum ditentukan'
     ) {
       throw new Error('Intent fallback extraction failed');
+    }
+
+    const routeCalculator = async places => ({
+      travelLegs: places.slice(1).map((place, index) => ({
+        fromPlaceId: places[index].placeId,
+        toPlaceId: place.placeId,
+        durationMinutes: 8,
+      })),
+      totalEstimatedTravelMinutes: Math.max(0, places.length - 1) * 8,
+      polylinePoints: places.map(place => ({ lat: place.lat, lng: place.lng })),
+    });
+    const manualItinerary = await buildManualItinerary([
+      {
+        placeId: 'cafe-one',
+        name: 'Cafe One',
+        category: 'cafe',
+        lat: -6.9,
+        lng: 110.4,
+        openingHours: '10:30 - 12:00 WIB',
+        estimatedCostMin: 40000,
+        estimatedCostMax: 50000,
+        budgetCategory: 'food',
+        suggestedDurationMinutes: 45,
+      },
+      {
+        placeId: 'cafe-two',
+        name: 'Cafe Two',
+        category: 'cafe',
+        lat: -6.901,
+        lng: 110.401,
+        openingHours: '08:00 - 20:00 WIB',
+        estimatedCostMin: 60000,
+        estimatedCostMax: 80000,
+        budgetCategory: 'food',
+        suggestedDurationMinutes: 45,
+      },
+      {
+        placeId: 'museum',
+        name: 'City Museum',
+        category: 'museum',
+        lat: -6.902,
+        lng: 110.402,
+        estimatedCostMin: 0,
+        estimatedCostMax: 10000,
+        budgetCategory: 'other',
+      },
+      {
+        placeId: 'expensive-cafe',
+        name: 'Expensive Cafe',
+        category: 'cafe',
+        lat: -6.903,
+        lng: 110.403,
+        estimatedCostMin: 250000,
+        estimatedCostMax: 300000,
+        budgetCategory: 'food',
+      },
+    ], {
+      location: 'Semarang',
+      categories: ['Kuliner'],
+      budget: 200000,
+      foodBudgetPercent: 100,
+      accommodationBudgetPercent: 0,
+      dateTime: '10:00-13:00',
+    }, { calculateRoute: routeCalculator });
+    const scheduledStops = manualItinerary.places;
+    const clockMinutes = value => {
+      const match = String(value || '').match(/(\d{2}):(\d{2})/);
+      return match ? Number(match[1]) * 60 + Number(match[2]) : -1;
+    };
+    const firstArrival = clockMinutes(scheduledStops[0]?.suggestedArrivalTime);
+    const secondArrival = clockMinutes(scheduledStops[1]?.suggestedArrivalTime);
+    if (
+      scheduledStops.length !== 2 ||
+      scheduledStops[0].placeId !== 'cafe-one' ||
+      scheduledStops[1].placeId !== 'cafe-two' ||
+      firstArrival < 10 * 60 + 30 ||
+      firstArrival + scheduledStops[0].suggestedDurationMinutes > secondArrival ||
+      secondArrival + scheduledStops[1].suggestedDurationMinutes > 13 * 60 ||
+      manualItinerary.totalEstimatedTravelMinutes !== 8 ||
+      scheduledStops.some(place => place.placeId === 'museum' || place.placeId === 'expensive-cafe')
+    ) {
+      throw new Error('Manual itinerary schedule, category, or budget constraints failed');
+    }
+
+    const complexOpeningHours = await buildManualItinerary([{
+      placeId: 'weekday-hours',
+      name: 'Weekday Schedule Place',
+      category: 'attraction',
+      lat: -6.9,
+      lng: 110.4,
+      openingHours: 'Mo-Fr 20:00-21:00',
+      estimatedCostMin: 0,
+      estimatedCostMax: 0,
+    }], {
+      location: 'Semarang',
+      categories: [],
+      budget: 0,
+      dateTime: '09:00-12:00',
+    }, { calculateRoute: routeCalculator });
+    if (
+      !complexOpeningHours.places[0]?.suggestedArrivalTime.includes('09:00 WIB')
+    ) {
+      throw new Error('Complex day-specific opening hours must not be treated as daily hours');
+    }
+
+    const scheduleAfterImpossiblePlace = await buildManualItinerary([
+      {
+        placeId: 'closed-during-trip',
+        name: 'Closed During Trip',
+        category: 'attraction',
+        lat: -6.9,
+        lng: 110.4,
+        openingHours: '20:00-21:00',
+        estimatedCostMin: 0,
+        estimatedCostMax: 0,
+      },
+      {
+        placeId: 'available-place',
+        name: 'Available Place',
+        category: 'attraction',
+        lat: -6.901,
+        lng: 110.401,
+        estimatedCostMin: 0,
+        estimatedCostMax: 0,
+      },
+    ], {
+      location: 'Semarang',
+      categories: [],
+      budget: 0,
+      dateTime: '09:00-12:00',
+    }, { calculateRoute: routeCalculator });
+    if (
+      scheduleAfterImpossiblePlace.places.length !== 1 ||
+      scheduleAfterImpossiblePlace.places[0].placeId !== 'available-place'
+    ) {
+      throw new Error('An impossible opening-hours slot must not prevent later places from scheduling');
     }
 
     if (
@@ -207,6 +382,12 @@ async function runTests() {
       )
     ) {
       throw new Error('Itinerary exceeded a food or accommodation allocation');
+    }
+    if (
+      intent.categories.includes('Kuliner') &&
+      !buildRes.body.data.places.some(place => place.budgetCategory === 'food')
+    ) {
+      throw new Error('Places in the culinary category were not assigned to the food budget');
     }
     console.log(`   Place-cost ceiling: Rp ${itineraryPlaceCost} / Rp ${intent.budget}`);
 

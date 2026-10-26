@@ -57,16 +57,17 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
     if (_locationController.text != intent.location) {
       _locationController.text = intent.location;
     }
-    if (_budgetController.text != intent.budget.toString()) {
-      _budgetController.text = intent.budget.toString();
+    final budgetText = intent.budget > 0 ? intent.budget.toString() : '';
+    if (_budgetController.text != budgetText) {
+      _budgetController.text = budgetText;
     }
     if (_timeController.text != intent.dateTime) {
       _timeController.text = intent.dateTime;
     }
     _peopleCount = intent.peopleCount;
     _foodBudgetPercent = intent.foodBudgetPercent.clamp(0, 100);
-    _accommodationBudgetPercent = intent.accommodationBudgetPercent
-      .clamp(0, 100 - _foodBudgetPercent);
+    _accommodationBudgetPercent =
+        intent.accommodationBudgetPercent.clamp(0, 100 - _foodBudgetPercent);
     _selectedCategories = [...intent.categories];
   }
 
@@ -123,7 +124,8 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
     if (currentIntent == null) return;
     if (_locationController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Masukkan kota atau destinasi terlebih dahulu.')),
+        const SnackBar(
+            content: Text('Masukkan kota atau destinasi terlebih dahulu.')),
       );
       return;
     }
@@ -154,14 +156,49 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
     }
   }
 
+  Widget _buildChatMessage(Map<String, String> message) {
+    final isUser = message['role'] == 'user';
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(
+          left: isUser ? 40 : 0,
+          right: isUser ? 0 : 40,
+          bottom: 12,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isUser ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isUser ? 16 : 0),
+            bottomRight: Radius.circular(isUser ? 0 : 16),
+          ),
+          border: isUser ? null : Border.all(color: AppColors.border),
+        ),
+        child: Text(
+          message['text'] ?? '',
+          style: TextStyle(
+            color: isUser ? Colors.white : AppColors.textPrimary,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tripState = ref.watch(tripCreationProvider);
     final intent = tripState.parsedIntent;
 
-    if (intent != null && _locationController.text.isEmpty) {
-      _syncIntentToControllers(intent);
-    }
+    ref.listen(tripCreationProvider, (previous, next) {
+      if (next.parsedIntent != null &&
+          next.parsedIntent != previous?.parsedIntent) {
+        _syncIntentToControllers(next.parsedIntent!);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -179,29 +216,7 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. User Chat Bubble
-                  if (tripState.rawQuery.isNotEmpty)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        margin: const EdgeInsets.only(left: 40, bottom: 16),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                            bottomLeft: Radius.circular(16),
-                          ),
-                        ),
-                        child: Text(
-                          tripState.rawQuery,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 14),
-                        ),
-                      ),
-                    ),
+                  ...tripState.conversationHistory.map(_buildChatMessage),
 
                   // 2. AI Loading State
                   if (tripState.isLoading)
@@ -252,31 +267,9 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                     ),
 
                   // 4. Gemini Structured Output Confirmation Card
-                  if (intent != null && !tripState.isLoading) ...[
-                    // AI message intro bubble
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 40, bottom: 12),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                            bottomRight: Radius.circular(16),
-                          ),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: const Text(
-                          'Berikut rencana yang saya tangkap dari pesan Anda. Silakan periksa atau sesuaikan sebelum mencari rekomendasi tempat:',
-                          style: TextStyle(
-                              color: AppColors.textPrimary, fontSize: 14),
-                        ),
-                      ),
-                    ),
-
+                  if (intent != null &&
+                      intent.location.isNotEmpty &&
+                      !tripState.isLoading) ...[
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -289,12 +282,12 @@ class _ChatParserScreenState extends ConsumerState<ChatParserScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.check_circle_outline,
+                                const Icon(Icons.check_circle_outline,
                                     color: AppColors.primary),
-                                SizedBox(width: 8),
-                                Text(
+                                const SizedBox(width: 8),
+                                const Text(
                                   'Konfirmasi Rencana Perjalanan',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,

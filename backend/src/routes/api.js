@@ -1,8 +1,8 @@
 import express from 'express';
 import { randomBytes } from 'node:crypto';
-import { parseUserIntent, optimizeItinerary } from '../services/geminiService.js';
+import { parseUserIntent } from '../services/geminiService.js';
+import { buildManualItinerary } from '../services/manualItineraryService.js';
 import { searchPlaces } from '../services/placesService.js';
-import { calculateRouteAndTravelTimes } from '../services/directionsService.js';
 import { config, isGeminiAvailable, isDirectionsAvailable } from '../config/env.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import {
@@ -40,16 +40,33 @@ router.get('/health', (req, res) => {
  */
 router.post('/parse-intent', requireAuth, async (req, res) => {
   try {
-    const { query, preferences } = req.body;
+    const { query, preferences, history = [] } = req.body;
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return res.status(400).json({
         error: 'Parameter "query" wajib diisi dengan teks permintaan perjalanan.'
       });
     }
+    if (!Array.isArray(history) || history.length > 20 || history.some(message =>
+      !message ||
+      !['user', 'model'].includes(message.role) ||
+      !Array.isArray(message.parts) ||
+      message.parts.length !== 1 ||
+      typeof message.parts[0]?.text !== 'string' ||
+      message.parts[0].text.length > 2000,
+    )) {
+      return res.status(400).json({
+        success: false,
+        error: 'Riwayat percakapan tidak valid.',
+      });
+    }
 
-    console.log(`[API /parse-intent] Processing: "${query}"`);
-    const parsedIntent = await parseUserIntent(query.trim(), preferences || {});
+    console.log('[API /parse-intent] Processing intent request');
+    const parsedIntent = await parseUserIntent(
+      query.trim(),
+      preferences || {},
+      history,
+    );
 
     return res.json({
       success: true,
@@ -98,7 +115,7 @@ router.post('/search-places', requireAuth, async (req, res) => {
 });
 
 /**
- * 3. Build optimized itinerary from selected places
+ * 3. Build a scheduled itinerary from selected places
  * POST /api/build-itinerary
  * Body: { places: Place[], intent?: ParsedIntent }
  */
@@ -111,74 +128,33 @@ router.post('/build-itinerary', requireAuth, async (req, res) => {
         error: 'Parameter "places" harus berupa array tempat (minimal 1 tempat).'
       });
     }
+    if (!intent || typeof intent.location !== 'string' || !intent.location.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Kota atau destinasi diperlukan untuk menyusun itinerary.',
+      });
+    }
 
     console.log(`[API /build-itinerary] Building itinerary for ${places.length} places`);
 
-    // Step 1: Gemini determines optimal stop ordering and activities
-    const geminiOptimization = await optimizeItinerary(places, intent || {});
-    if (intent?.budget > 0 && geminiOptimization.stops.length === 0) {
+    const manualItinerary = await buildManualItinerary(places, intent);
+    if (manualItinerary.places.length === 0 && Number(intent.budget) > 0) {
       return res.status(422).json({
         success: false,
-        error: 'Estimasi batas atas biaya tempat melebihi budget. Sesuaikan budget atau pilih tempat lain.',
+        error: manualItinerary.summary,
       });
     }
-
-    // Step 2: Re-order places according to Gemini's recommendation or preserve order
-    let orderedPlaces = [];
-    if (geminiOptimization.stops && geminiOptimization.stops.length > 0) {
-      // Map stops back to place objects
-      orderedPlaces = geminiOptimization.stops.map(stop => {
-        const originalPlace = places.find(p => p.placeId === stop.placeId) || places[0];
-        return {
-          ...originalPlace,
-          order: stop.order,
-          suggestedArrivalTime: stop.suggestedArrivalTime,
-          suggestedDurationMinutes: stop.suggestedDurationMinutes,
-          activityTip: stop.activityTip,
-          budgetCategory: stop.budgetCategory,
-          budgetTier: stop.budgetTier,
-          estimatedCostMin: stop.estimatedCostMin,
-          estimatedCostMax: stop.estimatedCostMax,
-          estimatedPrice: stop.estimatedCost,
-          visited: false
-        };
-      });
-    } else {
-      orderedPlaces = places.map((p, idx) => ({
-        ...p,
-        order: idx + 1,
-        suggestedArrivalTime: `${9 + idx * 2}:00 WIB`,
-        suggestedDurationMinutes: 60,
-        activityTip: `Kunjungi dan nikmati destinasi ${p.name}.`,
-        visited: false
-      }));
-    }
-
-    // Step 3: Google Directions API calculates route & leg travel times
-    const routeInfo = await calculateRouteAndTravelTimes(orderedPlaces);
-
-    // Attach estimatedTravelTimeFromPrevious to places
-    const enrichedPlaces = orderedPlaces.map((place, idx) => {
-      let travelFromPrev = 0;
-      if (idx > 0 && routeInfo.travelLegs[idx - 1]) {
-        travelFromPrev = routeInfo.travelLegs[idx - 1].durationMinutes;
-      }
-      return {
-        ...place,
-        estimatedTravelTimeFromPrevious: travelFromPrev
-      };
-    });
 
     const itineraryResult = {
       id: 'itinerary_' + Date.now(),
-      title: geminiOptimization.tripTitle || `Itinerary ${intent?.location || 'Kelana'}`,
-      summary: geminiOptimization.summary || 'Rencana perjalanan tersusun rapi.',
-      rawQuery: intent?.userNotes || '',
-      location: intent?.location || enrichedPlaces[0]?.name || 'Semarang',
-      totalEstimatedTravelMinutes: routeInfo.totalEstimatedTravelMinutes,
-      travelLegs: routeInfo.travelLegs,
-      polylinePoints: routeInfo.polylinePoints,
-      places: enrichedPlaces,
+      title: manualItinerary.title,
+      summary: manualItinerary.summary,
+      rawQuery: intent.userNotes || '',
+      location: intent.location,
+      totalEstimatedTravelMinutes: manualItinerary.totalEstimatedTravelMinutes,
+      travelLegs: manualItinerary.travelLegs,
+      polylinePoints: manualItinerary.polylinePoints,
+      places: manualItinerary.places,
       createdAt: new Date().toISOString(),
       status: 'draft'
     };

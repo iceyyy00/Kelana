@@ -8,6 +8,7 @@ class ParsedIntent {
   final String dateTime;
   final int peopleCount;
   final String userNotes;
+  final String chatResponse;
 
   ParsedIntent({
     required this.location,
@@ -19,23 +20,26 @@ class ParsedIntent {
     required this.dateTime,
     required this.peopleCount,
     required this.userNotes,
+    this.chatResponse = '',
   });
 
   factory ParsedIntent.fromJson(Map<String, dynamic> json) {
     return ParsedIntent(
       location: json['location'] as String? ?? '',
-      budget: (json['budget'] as num?)?.toInt() ?? 100000,
-      budgetLevel: json['budgetLevel'] as String? ?? 'budget',
-        foodBudgetPercent: (json['foodBudgetPercent'] as num?)?.toInt() ?? 50,
-        accommodationBudgetPercent:
-          (json['accommodationBudgetPercent'] as num?)?.toInt() ?? 20,
+      budget: (json['budget'] as num?)?.toInt() ?? 0,
+      budgetLevel: json['budgetLevel'] as String? ?? 'unspecified',
+      foodBudgetPercent: (json['foodBudgetPercent'] as num?)?.toInt() ?? 0,
+      accommodationBudgetPercent:
+          (json['accommodationBudgetPercent'] as num?)?.toInt() ?? 0,
       categories: (json['categories'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
-          ['Wisata', 'Kuliner'],
+          [],
       dateTime: json['dateTime'] as String? ?? 'Belum ditentukan',
       peopleCount: (json['peopleCount'] as num?)?.toInt() ?? 1,
       userNotes: json['userNotes'] as String? ?? '',
+      chatResponse:
+          json['chat_response'] as String? ?? json['userNotes'] as String? ?? '',
     );
   }
 
@@ -50,6 +54,7 @@ class ParsedIntent {
       'dateTime': dateTime,
       'peopleCount': peopleCount,
       'userNotes': userNotes,
+      'chat_response': chatResponse,
     };
   }
 
@@ -63,6 +68,7 @@ class ParsedIntent {
     String? dateTime,
     int? peopleCount,
     String? userNotes,
+    String? chatResponse,
   }) {
     return ParsedIntent(
       location: location ?? this.location,
@@ -75,6 +81,7 @@ class ParsedIntent {
       dateTime: dateTime ?? this.dateTime,
       peopleCount: peopleCount ?? this.peopleCount,
       userNotes: userNotes ?? this.userNotes,
+      chatResponse: chatResponse ?? this.chatResponse,
     );
   }
 }

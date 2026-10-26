@@ -6,6 +6,21 @@ import '../../models/place.dart';
 import '../../models/itinerary.dart';
 
 class ApiClient {
+  static const _retryCountKey = 'apiClientConnectionTimeoutRetryCount';
+  static const _maxConnectionTimeoutRetries = 3;
+  static const Map<String, String> _chitChatRules = {
+    'halo': 'Hai! Mau merencanakan perjalanan ke mana kita hari ini? ✈️',
+    'hi': 'Halo! Ada rencana liburan seru hari ini? Mau ke mana?',
+    'hai': 'Hai juga! Siap berpetualang? Kamu mau pergi ke mana hari ini?',
+    'p': 'Halo! Ada yang bisa dibantu untuk rencana perjalananmu hari ini?',
+    'terima kasih':
+        'Sama-sama! Semoga rencana perjalananmu menyenangkan. Ada kota lain yang ingin kamu kunjungi?',
+    'makasih': 'Sama-sama! Selamat merencanakan liburanmu ya!',
+  };
+  static const _incompleteQueryResponse =
+      'Halo! Hari ini kita mau merencanakan liburan ke mana nih? Yuk, beri tahu '
+      'aku kota atau destinasi tujuanmu!';
+
   late final Dio _dio;
   String _baseUrl = ApiConstants.defaultBaseUrl;
 
@@ -14,8 +29,8 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 20),
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 60),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -38,6 +53,34 @@ class ApiClient {
                 error: error,
               ),
             );
+          }
+        },
+        onError: (error, handler) async {
+          if (error.type != DioExceptionType.connectionTimeout) {
+            handler.next(error);
+            return;
+          }
+
+          final retryCount =
+              error.requestOptions.extra[_retryCountKey] as int? ?? 0;
+          if (retryCount >= _maxConnectionTimeoutRetries) {
+            handler.next(error);
+            return;
+          }
+
+          final nextRetry = retryCount + 1;
+          print(
+            '[ApiClient] Connection timeout. Retrying '
+            '($nextRetry/$_maxConnectionTimeoutRetries)...',
+          );
+          await Future.delayed(const Duration(seconds: 2));
+          error.requestOptions.extra[_retryCountKey] = nextRetry;
+
+          try {
+            final response = await _dio.fetch<dynamic>(error.requestOptions);
+            handler.resolve(response);
+          } on DioException catch (retryError) {
+            handler.next(retryError);
           }
         },
       ),
@@ -80,15 +123,43 @@ class ApiClient {
     }
   }
 
+  String? handleLocalChitChat(String query) {
+    return _chitChatRules[query.trim().toLowerCase()];
+  }
+
   /// 1. Parse intent with Gemini via Backend Proxy
   Future<ParsedIntent> parseIntent(String query,
-      {Map<String, dynamic>? preferences}) async {
+      {Map<String, dynamic>? preferences,
+      List<Map<String, String>> history = const []}) async {
+    if (history.isEmpty && _isIncompleteQuery(query)) {
+      return ParsedIntent(
+        location: '',
+        budget: 0,
+        budgetLevel: 'unspecified',
+        foodBudgetPercent: 0,
+        accommodationBudgetPercent: 0,
+        categories: const [],
+        dateTime: 'Belum ditentukan',
+        peopleCount: 0,
+        userNotes: _incompleteQueryResponse,
+        chatResponse: _incompleteQueryResponse,
+      );
+    }
+
     try {
       final response = await _dio.post(
         ApiConstants.parseIntent,
         data: {
           'query': query,
           if (preferences != null) 'preferences': preferences,
+          'history': history
+              .map((message) => {
+                    'role': message['role'],
+                    'parts': [
+                      {'text': message['text']},
+                    ],
+                  })
+              .toList(),
         },
       );
 
@@ -101,6 +172,12 @@ class ApiClient {
       print('[ApiClient] Error in parseIntent: $e');
       rethrow;
     }
+  }
+
+  bool _isIncompleteQuery(String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+    const greetings = {'halo', 'hai', 'hi', 'hello', 'hey'};
+    return normalizedQuery.length < 5 || greetings.contains(normalizedQuery);
   }
 
   /// 2. Search places matching intent

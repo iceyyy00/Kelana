@@ -13,6 +13,7 @@ class TripCreationState {
   final String? loadingMessage;
   final String? errorMessage;
   final String rawQuery;
+  final List<Map<String, String>> conversationHistory;
   final ParsedIntent? parsedIntent;
   final List<Place> recommendedPlaces;
   final List<Place> selectedPlaces;
@@ -23,6 +24,7 @@ class TripCreationState {
     this.loadingMessage,
     this.errorMessage,
     this.rawQuery = '',
+    this.conversationHistory = const [],
     this.parsedIntent,
     this.recommendedPlaces = const [],
     this.selectedPlaces = const [],
@@ -34,7 +36,9 @@ class TripCreationState {
     String? loadingMessage,
     String? errorMessage,
     String? rawQuery,
+    List<Map<String, String>>? conversationHistory,
     ParsedIntent? parsedIntent,
+    bool clearParsedIntent = false,
     List<Place>? recommendedPlaces,
     List<Place>? selectedPlaces,
     Itinerary? builtItinerary,
@@ -44,7 +48,9 @@ class TripCreationState {
       loadingMessage: loadingMessage,
       errorMessage: errorMessage,
       rawQuery: rawQuery ?? this.rawQuery,
-      parsedIntent: parsedIntent ?? this.parsedIntent,
+      conversationHistory: conversationHistory ?? this.conversationHistory,
+      parsedIntent:
+          clearParsedIntent ? null : parsedIntent ?? this.parsedIntent,
       recommendedPlaces: recommendedPlaces ?? this.recommendedPlaces,
       selectedPlaces: selectedPlaces ?? this.selectedPlaces,
       builtItinerary: builtItinerary ?? this.builtItinerary,
@@ -61,19 +67,52 @@ class TripCreationNotifier extends StateNotifier<TripCreationState> {
   Future<bool> submitPrompt(String query) async {
     if (query.trim().isEmpty) return false;
 
+    final previousHistory = state.conversationHistory;
+    final localResponse = _apiClient.handleLocalChitChat(query);
+    if (localResponse != null) {
+      state = state.copyWith(
+        rawQuery: query,
+        conversationHistory: _appendConversationTurn(
+          previousHistory,
+          query,
+          localResponse,
+        ),
+        isLoading: false,
+        loadingMessage: null,
+        errorMessage: null,
+        clearParsedIntent: true,
+      );
+      return true;
+    }
+
+    final pendingHistory = _trimConversationHistory([
+      ...previousHistory,
+      {'role': 'user', 'text': query},
+    ]);
     state = state.copyWith(
       isLoading: true,
       loadingMessage: 'Gemini sedang memahami rencana perjalanan Anda...',
       errorMessage: null,
       rawQuery: query,
+      conversationHistory: pendingHistory,
+      clearParsedIntent: true,
     );
 
     try {
-      final intent = await _apiClient.parseIntent(query);
+      final intent = await _apiClient.parseIntent(
+        query,
+        history: previousHistory,
+      );
       state = state.copyWith(
         isLoading: false,
         loadingMessage: null,
         parsedIntent: intent,
+        conversationHistory: _appendAssistantResponse(
+          state.conversationHistory,
+          intent.chatResponse.isNotEmpty
+              ? intent.chatResponse
+              : intent.userNotes,
+        ),
       );
       return true;
     } catch (e) {
@@ -81,9 +120,43 @@ class TripCreationNotifier extends StateNotifier<TripCreationState> {
         isLoading: false,
         loadingMessage: null,
         errorMessage: 'Gagal menganalisis permintaan: ${e.toString()}',
+        conversationHistory: _appendAssistantResponse(
+          state.conversationHistory,
+          'Maaf, terjadi gangguan saat memahami permintaan Anda. Silakan coba lagi.',
+        ),
       );
       return false;
     }
+  }
+
+  List<Map<String, String>> _appendConversationTurn(
+    List<Map<String, String>> history,
+    String query,
+    String response,
+  ) {
+    return _trimConversationHistory([
+      ...history,
+      {'role': 'user', 'text': query},
+      {'role': 'model', 'text': response},
+    ]);
+  }
+
+  List<Map<String, String>> _appendAssistantResponse(
+    List<Map<String, String>> history,
+    String response,
+  ) {
+    return _trimConversationHistory([
+      ...history,
+      {'role': 'model', 'text': response},
+    ]);
+  }
+
+  List<Map<String, String>> _trimConversationHistory(
+    List<Map<String, String>> history,
+  ) {
+    const maxMessages = 20;
+    if (history.length <= maxMessages) return history;
+    return history.sublist(history.length - maxMessages);
   }
 
   /// Update parsed intent fields manually from confirmation card
@@ -148,7 +221,7 @@ class TripCreationNotifier extends StateNotifier<TripCreationState> {
     state = state.copyWith(selectedPlaces: current);
   }
 
-  /// Step 3: Build optimized itinerary with Gemini + Directions API
+  /// Step 3: Build a scheduled itinerary with Directions API
   Future<bool> buildItinerary() async {
     if (state.selectedPlaces.isEmpty) {
       state = state.copyWith(errorMessage: 'Pilih minimal 1 tempat destinasi.');
